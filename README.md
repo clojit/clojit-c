@@ -2,7 +2,7 @@
 
 A Clojure library designed to output a Clojure Bytecode for VM.
 
-Also eventually
+Also eventually (maybe in diffrent project) a VM for Clojure written in Rust.
 
 
 ## License

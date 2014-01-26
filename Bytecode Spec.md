@@ -28,6 +28,12 @@ https://github.com/halgari/clojure-py
 
 http://clojure-py.blogspot.de/
 
+###Guile
+
+With Guile 2.2 they will have a VM with Register Bytecode, see:
+http://wingolog.org/archives/2013/11/26/a-register-vm-for-guile
+
+
 Problems:
 ----------
 
@@ -38,3 +44,4 @@ These features either have to be inplmented in Clojure ontop of the current spec
 
 Desings:
 --------
+
