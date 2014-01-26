@@ -1,10 +1,6 @@
 Bytecode:
 http://smalltalk.gnu.org/files/vmspec.pdf
 
-Rust:
-http://www.youtube.com/watch?v=9wOzjbgRoNU
-http://pcwalton.github.io/blog/2013/06/02/removing-garbage-collection-from-the-rust-language/
-
 Alt aber supper builder:
 
 http://blog.fogus.me/2012/04/25/the-clojurescript-compilation-pipeline/
@@ -62,4 +58,8 @@ https://github.com/clojure/clojurescript/blob/master/src/clj/cljs/compiler.clj
 https://github.com/clojure/clojurescript/blob/master/src/clj/cljs/analyzer.clj
 
 Rust:
+http://static.rust-lang.org/doc/master/tutorial.html
+http://static.rust-lang.org/doc/master/guide-pointers.html
+https://github.com/mozilla/rust/wiki/Doc-detailed-release-notes
 http://pcwalton.github.io/blog/2013/06/02/removing-garbage-collection-from-the-rust-language/
+http://www.youtube.com/watch?v=9wOzjbgRoNU
