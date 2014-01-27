@@ -61,3 +61,16 @@
   * http://www.stephendiehl.com/llvm/?utm_source=dlvr.it&utm_medium=tumblr
 - Implementing a Language with LLVM (with JIT) in C++ 
   * http://llvm.org/docs/tutorial/index.html
+  
+### Interpreter Scheme  
+
+- http://en.wikibooks.org/wiki/Write_Yourself_a_Scheme_in_48_Hours
+- (How to Write a (Lisp) Interpreter (in Python))
+   * http://norvig.com/lispy.html
+
+### Trace JIT Papers
+
+- Dynamo: A Transparent Dynamic Optimization System
+  * http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.74.6227&rep=rep1&type=pdf
+- SPUR: a trace-based JIT compiler for CIL
+  * http://research.microsoft.com/pubs/121449/techreport2.pdf
