@@ -63,3 +63,6 @@ http://static.rust-lang.org/doc/master/guide-pointers.html
 https://github.com/mozilla/rust/wiki/Doc-detailed-release-notes
 http://pcwalton.github.io/blog/2013/06/02/removing-garbage-collection-from-the-rust-language/
 http://www.youtube.com/watch?v=9wOzjbgRoNU
+
+Implementing a JIT Compiled Language with Haskell and LLVM:
+http://www.stephendiehl.com/llvm/?utm_source=dlvr.it&utm_medium=tumblr
