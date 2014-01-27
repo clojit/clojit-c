@@ -41,6 +41,13 @@ Clojure was designed to run on a host. Both JVM Clojure and ClojureScript (JS) a
 
 These features either have to be inplmented in Clojure ontop of the current special froms or we have to provide native inpmnetation (clojure-py).
 
+Ideas:
+---------
+
+There is only one looping construct in clojure, yet we often have more infomration from standard macros (dotimes ...)
+. Maybe we can somehow use these information and give to the VM. We also have information about the length of loops over collection (map inc [1 2 3]). We have constant access to the size of persistent collection, this information might help the VM.
+
+
 
 Desings:
 --------
