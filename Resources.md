@@ -74,3 +74,11 @@
   * http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.74.6227&rep=rep1&type=pdf
 - SPUR: a trace-based JIT compiler for CIL
   * http://research.microsoft.com/pubs/121449/techreport2.pdf
+
+
+### Garbage Collection
+
+- The Memory Management Reference
+   * http://www.memorymanagement.org/
+- Memory Pool System
+   * http://www.ravenbrook.com/project/mps/master/manual/html/index.html
