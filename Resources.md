@@ -54,6 +54,7 @@
 - https://github.com/mozilla/rust/wiki/Doc-detailed-release-notes
 - http://pcwalton.github.io/blog/2013/06/02/removing-garbage-collection-from-the-rust-language/
 - http://www.youtube.com/watch?v=9wOzjbgRoNU
+- http://vimeo.com/85253071
 
 ### LLVM
 
