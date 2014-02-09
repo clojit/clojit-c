@@ -1,6 +1,89 @@
 Clojure Bytecode Spec
 ======================
 
+    B	C	A	OP
+    D	    A	OP
+
+## Tables
+
+- Global Symbol Table
+- Constant Number Table
+- Constant String Table
+- Constant Keyword Table
+
+## Constant Table Read Ops
+
+    OP      A       D
+
+    CSTR    dst     str
+    CNUM    dst     num
+    CKEY    dst     keyword
+
+Reads D from const. table and writes it into destination slot A.
+
+## Global Table Ops
+
+    OP       A       D
+    
+    NSGETV   -      var
+    NSGETS   -      str
+    
+    NSSETV   var    var
+    NSSETS   var    str
+    
+Gets a symbol D from the namespace environment, or sets the symbol D to the value of variable A.
+
+## Variable Slots
+
+All variables are stored in a function local variable slot. TODO: Figure out how
+this is supposed to work for function calls.
+
+## Function Calls
+
+    OP      A       D
+    CALL    base    lit
+
+'lit' is the number of arguments.
+
+base is a offset on the variable belt, so that the slot nr 'base' is a reference
+to the function, 'base+1' is the first argument, 'base+lit' is the last
+argument and so on.
+
+The CALL instruction will set up the variable belt for the callee so that
+all parameters are in the right place.
+
+    OP      A       B       C
+    APPLY   var     var     -
+
+Calls the function stored on variable slot A, and applies the elements from
+vector B as argument for the function.
+
+
+
+TODO: Figure out if local variables of the caller are allowed to be stored 
+after 'base'.
+
+## Function Def
+
+    OP      A       D
+    FUNCF   lit     -
+    FUNCV   lit     -
+    
+FUNCF & FUNV define a function with 'lit' fixed arguments. The FUNCV opcode 
+defines a function which has an additional vararg argument. 
+(defn [a b & c] ...) == FUNCV 2
+    
+## TODO
+
+    - Define loops (probably as a form of tail recursion)
+    - Define jumps and jump conditions
+    - Define math ops, conditional ops
+    - Define variable movement
+    - Define function return
+    - Define array operations
+    - Maybe define memory allocation?
+
+
 
 Resources
 ---------
