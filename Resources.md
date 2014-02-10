@@ -37,11 +37,12 @@
 - http://article.gmane.org/gmane.comp.lang.lua.general/75426
 - http://www.freelists.org/post/luajit/How-does-LuaJITs-trace-compiler-work,1
 - http://blog.reverberate.org/2012/12/hello-jit-world-joy-of-simple-jits.html
-- http://lua-users.org/lists/lua-l/2009-11/msg00089.html
+- [LuaJIT Design Decisions](http://lua-users.org/lists/lua-l/2009-11/msg00089.html)
 - http://www.reddit.com/r/programming/comments/wewx2/allocation_sinking_optimization_in_luajit/
 - http://www.reddit.com/r/programming/comments/badl2/luajit_2_beta_3_is_out_support_both_x32_x64/c0lrus0
 - http://www.reddit.com/r/programming/comments/hkzg8/author_of_luajit_explains_why_compilers_cant_beat/c1w8xyz
-- http://www.freelists.org/post/luajit/LuaJIT-Language-Toolkit
+- [Lua compiler in Lua which emits LuaJIT bytecode](http://www.freelists.org/post/luajit/LuaJIT-Language-Toolkit)
+- [Lua (non-JIT) Bytecode Specs, somewhat similar to LuaJIT's](http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf)
 
 ### ClojureScript:
 - http://swannodette.github.io/2014/01/14/clojurescript-analysis--compilation/
