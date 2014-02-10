@@ -38,6 +38,11 @@ Gets a symbol D from the namespace environment, or sets the symbol D to the valu
 All variables are stored in a function local variable slot. TODO: Figure out how
 this is supposed to work for function calls.
 
+ISSUE: In the current design, the variables are accessed using a 8-bit index. This
+limits the number of local variables to 256. This is not a problem for Lua, as it
+allows no more than 200 local variables, but might be a problem for a general
+programming language such as Clojure.
+
 ## Function Calls
 
     OP      A       D
