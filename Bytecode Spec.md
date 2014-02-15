@@ -65,10 +65,26 @@ For the math ops: If one of the operands is a float, the result is of type float
 
 For the comparision ops: If the operands are not of the same type, the other value is converted to float for comparison. Equals is only true if both operands have the same type.
 
+## Unary Ops
+
+    OP      A       D
+    MOV	    dst	    var	    Copy D to A
+    NOT	    dst	    var	    Set A to boolean not of D
+    NEG	    dst	    var	    Set A to -D (negate)
+
+## Jumps
+
+    OP      A       D
+    JUMPF   var     addr
+    JUMPT   var     addr
+    
+Jumps to the relative target address `addr` if the value in slot `var` is truthy or falsy. The `addr` is in amount of bytecode instructions.
+
 ## Function Calls
 
     OP      A       D
     CALL    base    lit
+    RET     var     -
 
 'lit' is the number of arguments.
 
@@ -79,6 +95,9 @@ argument and so on.
 The CALL instruction will set up the variable belt for the callee so that
 all parameters are in the right place.
 
+The RET instruction will copy the value in `var` into the designated slot for
+the caller.
+
     OP      A       B       C
     APPLY   var     var     -
 
@@ -86,9 +105,9 @@ Calls the function stored on variable slot A, and applies the elements from
 vector B as argument for the function.
 
 
-
 TODO: Figure out if local variables of the caller are allowed to be stored 
 after 'base'.
+
 
 ## Function Def
 
@@ -103,13 +122,9 @@ defines a function which has an additional vararg argument.
 ## TODO
 
     - Define loops (probably as a form of tail recursion)
-    - Define jumps and jump conditions
-    - Define math ops, conditional ops
-    - Define variable movement
     - Define function return
     - Define array operations
     - Maybe define memory allocation?
-
 
 
 Resources
