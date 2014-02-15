@@ -60,7 +60,10 @@ programming language such as Clojure.
     ISEQ	dst var var	    A = B == C
     ISNEQ	dst var var	    A = B ≠ C
     
-Executes the operation on the numbers B and C.
+Executes the operation on the numbers B and C. 
+For the math ops: If one of the operands is a float, the result is of type float. If both operands are longs, the result is of type long.
+
+For the comparision ops: If the operands are not of the same type, the other value is converted to float for comparison. Equals is only true if both operands have the same type.
 
 ## Function Calls
 
