@@ -122,7 +122,6 @@ defines a function which has an additional vararg argument.
 ## TODO
 
     - Define loops (probably as a form of tail recursion)
-    - Define function return
     - Define array operations
     - Maybe define memory allocation?
 
