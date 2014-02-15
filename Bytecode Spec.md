@@ -43,6 +43,25 @@ limits the number of local variables to 256. This is not a problem for Lua, as i
 allows no more than 200 local variables, but might be a problem for a general
 programming language such as Clojure.
 
+## Binary Ops
+
+    OP      A   B   C
+    ADDVV	dst	var	var	    A = B + C
+    SUBVV	dst	var	var	    A = B - C
+    MULVV	dst	var	var	    A = B * C
+    DIVVV	dst	var	var	    A = B / C
+    MODVV	dst	var	var	    A = B % C
+    POW	    dst	var	var	    A = B ^ C
+    
+    ISLT	dst var	var	    A = B < C
+    ISGE	dst var	var     A = B ≥ C
+    ISLE	dst var var	    A = B ≤ C
+    ISGT	dst var var	    A = B > C
+    ISEQ	dst var var	    A = B == C
+    ISNEQ	dst var var	    A = B ≠ C
+    
+Executes the operation on the numbers B and C.
+
 ## Function Calls
 
     OP      A       D
