@@ -75,6 +75,7 @@ For the comparision ops: If the operands are not of the same type, the other val
 ## Jumps
 
     OP      A       D
+    JUMP    -       addr
     JUMPF   var     addr
     JUMPT   var     addr
     
@@ -93,10 +94,13 @@ to the function, 'base+1' is the first argument, 'base+lit' is the last
 argument and so on.
 
 The CALL instruction will set up the variable belt for the callee so that
-all parameters are in the right place.
+all parameters are in the right place. This means that for the callee its
+return address is in slot 0, the function object for itself in slot 1 and its
+arguments in slot 2 and following slots.
 
 The RET instruction will copy the value in `var` into the designated slot for
-the caller.
+the caller. RET will read out the return address from slot 0, replace it with 
+the contents of `var` and then jump to the return address.
 
     OP      A       B       C
     APPLY   var     var     -
@@ -108,6 +112,47 @@ vector B as argument for the function.
 TODO: Figure out if local variables of the caller are allowed to be stored 
 after 'base'.
 
+## Closures and Free Variables
+
+    OP      A       D
+    FNEW    dst     jump
+    
+FNEW creates new closure for the function referenced by `jump` in the variable
+slot `dst`.
+
+    OP          A       B       C
+    SETFREEVAR  dst     src     idx
+    GETFREEVAR  dst     src     idx
+    
+SETFREEVAR sets the free variable `idx` of closure `dst` to the value of
+the variable in `src`.
+GETFREEVAR copies the value of the free variable `idx` from the closure `src`
+into the variable in `dst`.
+
+## Tail Recursion and Loops
+
+    OP          A       B       C
+    LOOP        -       -       -
+    BULKMOV     dst     src     len
+    
+LOOP is a no-op to indicate the beginning of a loop. At the end of a loop,
+a JUMP instruction is used to jump back to the beginning of the loop (i.e. where
+the LOOP instruction is). BULKMOV copies `len` variables starting from `src` into
+`dst`, `dst+1`, ..., `dst+len`. BULKMOV is used to reset the loop variables.
+
+Tail recursion is implemented using the JUMP instruction, the function jumps
+back to the start of the function. The compiler emits the code to set-up the
+new arguments of the function.
+
+## Arrays
+
+    OP          A       B       C
+    NEWARRAY    dst     size
+    GETARRAY    dst     src     idx     dst[idx] = src
+    SETARRAY    dst     src     idx     dst = src[idx]
+    
+Creates a new array of size `size` in the variable slot `dst`. The element size
+of arrays is 64bit. The array index `idx` is read from a variable slot.
 
 ## Function Def
 
@@ -121,9 +166,10 @@ defines a function which has an additional vararg argument.
     
 ## TODO
 
-    - Define loops (probably as a form of tail recursion)
-    - Define array operations
-    - Maybe define memory allocation?
+ * Define type layout and creation (vtables).
+ * Representation of stack values: pointers, integers (NaN tagging).
+ * Define byte code for defining and creating protocols.
+ * Runtime extension of types (reify).
 
 
 Resources
@@ -175,4 +221,3 @@ There is only one looping construct in clojure, yet we often have more infomrati
 
 Desings:
 --------
-
