@@ -171,6 +171,55 @@ defines a function which has an additional vararg argument.
  * Define byte code for defining and creating protocols.
  * Runtime extension of types (reify).
 
+# Type Tagging
+
+Without using a shadow stack to store the type of register values, the only
+way to store the type is to reserve some bits for it. With tagging, there is
+no option to actually store 64 bit integers in registers, as some bits have
+to be used for the type.
+
+Current operating systems on x86-64 enforce a pointer structure where the upper
+16 bits and the lower 3 bits of an pointer are forced to be zero, [see Wikipedia
+for more details](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+
+Since there is no way to represent 64 bit integers, the following properties
+would be nice, regarding to unboxing (i.e. using the register value for directly
+in an operation without any bit modifications to make it fit):
+
+1. Fast 32bit integers, without the need for unboxing the values first. This is 
+   possible on x86-64 if only the upper 32 bits are used for tagging, since x86
+   allows direct operations on the lower 32 bits.
+2. Fast pointer access on x86-64. Since a valid virtual address is only 48 bits
+   wide, the upper 16 bits can be used for tagging. If the pointer tag is all-zero,
+   then no unboxing would be needed.
+3. Fast double-precision floating point access. Since there are 2^51 NaN values, but
+   only one is used in practise, it is possible to implement fast float operations
+   without unboxing.
+4. Use additional tag bits not only to determine that a register value is a pointer,
+   but also to determine which type of pointer it is, e.g. to differentiate between
+   objects pointers and functions pointers.
+
+Property (1.) cannot be achieved if the lower bits are used for tagging. V8 uses
+the lower bits for tagging, but seems to have an optimizing compiler to avoid
+unnecessary boxing/unboxing operations.
+
+Having property (2.) means that pointers can be dereferenced without unboxing.
+Property (2.) is in conflict with property (3.), since a valid pointer value can
+also be a valid float value, therefore float values have to be unboxed.
+Property (2.) can also not be directly combined with property (4.), since it is
+not possible to store any additional information about the pointer without
+modifying it.
+
+Property (2.) seems to help with garbage collection, since the garbage collector
+does not have to perform any modifications on the pointer to resolve it.
+
+Properties (1.), (2.) and (4.) can be achieved without conflict using NaN boxing.
+This means that only for pointer access the values have to be unboxed before use.
+At least on x86-64, floating point and 32-bit integer operations can be performed
+directly on the register, without modifying bit operations.
+Only pointers have to be unboxed before use, but the 48 bit pointers of x86-64
+are small enough to be stored in the 51 bit fraction of a NaN double.
+
 
 Resources
 ---------
