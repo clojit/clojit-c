@@ -86,3 +86,9 @@
    * http://www.memorymanagement.org/
 - Memory Pool System
    * http://www.ravenbrook.com/project/mps/master/manual/html/index.html
+
+### Pointer Tagging
+
+- http://wingolog.org/archives/2011/05/18/value-representation-in-javascript-implementations
+- http://code.google.com/p/v8/source/browse/branches/bleeding_edge/src/objects.h#156
+- http://blog.mozilla.com/rob-sayre/2010/08/02/mozillas-new-javascript-value-representation/
