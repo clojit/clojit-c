@@ -50,6 +50,7 @@
 - https://github.com/clojure/clojurescript/blob/master/src/clj/cljs/compiler.clj
 - https://github.com/clojure/clojurescript/blob/master/src/clj/cljs/analyzer.clj
 - http://blog.fogus.me/2012/04/25/the-clojurescript-compilation-pipeline/
+- https://www.youtube.com/watch?v=KhRQmT22SSg
 
 ### Rust:
 - http://static.rust-lang.org/doc/master/tutorial.html
