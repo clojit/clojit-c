@@ -1,0 +1,172 @@
+<html>
+    <head>
+        <title>
+            Comparison Table Clojit
+        </title>
+
+    </head>
+    <body>
+<table border=1 align="center" width="90%">
+    <tr>
+        <th>
+            Comment
+        </th>
+        <th>
+            Clojure
+        </th>
+        <th>
+            AST
+        </th>
+        <th>
+            Bytecode
+        </th>
+    </tr>
+    <tr>
+        <td>
+            Simple Plus.
+        </td>
+        <td>
+            (+ 1 1)
+        </td>
+        <td>
+            <pre> <xmp>
+{:children [:args :fn],
+ :meta {:line 94, :column 16, :end-line 94, :end-column 23},
+ :op :invoke,
+ :form (+ 1 1),
+ :env
+ {:context :expr,
+  :locals {},
+  :ns user,
+  :namespaces
+  #<Atom@13b33e0d:
+    {user
+     {:mappings {a #<Var@2bc80d81: #<Unbound Unbound: #'user/a>>},
+      :aliases {},
+      :ns user}}>},
+ :fn
+ {:form +,
+  :env
+  {:context :expr,
+   :locals {},
+   :ns user,
+   :namespaces
+   #<Atom@13b33e0d:
+     {user
+      {:mappings {a #<Var@2bc80d81: #<Unbound Unbound: #'user/a>>},
+       :aliases {},
+       :ns user}}>},
+  :op :maybe-class,
+  :class +},
+ :args
+ [{:op :const,
+   :env
+   {:context :expr,
+    :locals {},
+    :ns user,
+    :namespaces
+    #<Atom@13b33e0d:
+      {user
+       {:mappings {a #<Var@2bc80d81: #<Unbound Unbound: #'user/a>>},
+        :aliases {},
+        :ns user}}>},
+   :type :number,
+   :literal? true,
+   :val 1,
+   :form 1}
+  {:op :const,
+   :env
+   {:context :expr,
+    :locals {},
+    :ns user,
+    :namespaces
+    #<Atom@13b33e0d:
+      {user
+       {:mappings {a #<Var@2bc80d81: #<Unbound Unbound: #'user/a>>},
+        :aliases {},
+        :ns user}}>},
+   :type :number,
+   :literal? true,
+   :val 1,
+   :form 1}]}
+           </xmp>  </pre>
+        </td>
+        <td>
+            <pre>
+;; Load Number Constnat Table Index 0 (1)
+;; into VarBeld Slot 1 and 2
+CNUM    1     0
+CNUM    2     0
+;; Add and put in VarBelt Slot 3
+ADDVV   3  1  2
+            </pre>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            Simple top Level Definition
+        </td>
+        <td>
+            (def a 1)
+        </td>
+        <td>
+            <pre> <xmp>
+{:children [:meta :init],
+ :init
+ {:op :const,
+  :env
+  {:name a,
+   :context :expr,
+   :locals {},
+   :ns user,
+   :namespaces
+   #<Atom@13b33e0d:
+     {user
+      {:mappings {a #<Var@2bc80d81: #<Unbound Unbound: #'user/a>>},
+       :aliases {},
+       :ns user}}>},
+  :type :number,
+  :literal? true,
+  :val 1,
+  :form 1},
+ :op :def,
+ :env
+ {:name a,
+  :context :expr,
+  :locals {},
+  :ns user,
+  :namespaces
+  #<Atom@13b33e0d:
+    {user
+     {:mappings {a #<Var@2bc80d81: #<Unbound Unbound: #'user/a>>},
+      :aliases {},
+      :ns user}}>},
+ :form (def a 1),
+ :name a,
+ :var #<Var@2bc80d81: #<Unbound Unbound: #'user/a>>}
+
+
+
+
+
+
+
+</xmp> </pre>
+        </td>
+        <td>
+            <pre>
+;; Number Const Table Index 0
+;; into Variable Belt Index 0
+CNUM    0     0
+;; String Constant Table 0 ("x") set
+;; to value of VarBelt 0 (1) in namespace
+NSSETS  0     0
+            </pre>
+        </td>
+    </tr>
+</table>
+    </body>
+</html>
+
+
+
