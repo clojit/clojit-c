@@ -164,6 +164,83 @@ NSSETS  0     0
             </pre>
         </td>
     </tr>
+    <tr>
+        <td> Simple Local Binding </td>
+        <td> (let [a 1] a)</td>
+        <td>
+    <xmp>
+{:op :let,
+ :form (let* [a 1] a),
+ :env {:context :expr, :locals {}, :ns user},
+ :body
+ {:body? true,
+  :op :do,
+  :env
+  {:context :expr,
+   :locals
+   {a
+    {:op :binding,
+     :env {:context :expr, :locals {}, :ns user},
+     :name a,
+     :init
+     {:op :const,
+      :env {:context :expr, :locals {}, :ns user},
+      :type :number,
+      :literal? true,
+      :val 1,
+      :form 1},
+     :form a,
+     :local :let,
+     :children [:init]}},
+   :ns user},
+  :form (do a),
+  :statements [],
+  :ret
+  {:assignable? false,
+   :op :local,
+   :env
+   {:context :expr,
+    :locals
+    {a
+     {:op :binding,
+      :env {:context :expr, :locals {}, :ns user},
+      :name a,
+      :init
+      {:op :const,
+       :env {:context :expr, :locals {}, :ns user},
+       :type :number,
+       :literal? true,
+       :val 1,
+       :form 1},
+      :form a,
+      :local :let,
+      :children [:init]}},
+    :ns user},
+   :name a,
+   :form a,
+   :local :let,
+   :children []},
+  :children [:statements :ret]},
+ :bindings
+ [{:op :binding,
+   :env {:context :expr, :locals {}, :ns user},
+   :name a,
+   :init
+   {:op :const,
+    :env {:context :expr, :locals {}, :ns user},
+    :type :number,
+    :literal? true,
+    :val 1,
+    :form 1},
+   :form a,
+   :local :let,
+   :children [:init]}],
+ :children [:bindings :body]}
+    </xmp>
+</td>
+        <td>  </td>
+    </tr>
+
 </table>
     </body>
 </html>

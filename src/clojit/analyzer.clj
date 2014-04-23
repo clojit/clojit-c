@@ -48,6 +48,21 @@
                              :ns 'user}
                       })})
 
+(def foo 2)
+
+(def e2 {:context :expr
+        :locals {}
+        :ns 'user
+        :namespaces (atom
+                     {'user {:mappings (into (ns-map 'clojure.core)
+                                                     {'foo #'foo})
+                                     :aliases {}
+                                     :ns 'user}
+                      'clojure.core {:mappings (ns-map 'clojure.core)
+                                     :aliases {}
+                                     :ns 'clojure.core}})})
+
+
 (defmacro ast [form]
   `(binding [a/macroexpand-1 macroexpand-1
              a/create-var ~(fn [sym env]
@@ -55,10 +70,10 @@
                                     (reset-meta! (meta sym))))
              a/parse a/-parse
              a/var? ~var?]
-     (a/analyze '~form e)))b
+     (a/analyze '~form e2)))
 
 (defmacro mexpand [form]
-  `(macroexpand-1 '~form e))
+  `(macroexpand-1 '~form e2))
 
 (defn in-const-table? [ast-node ast-node-filter-type]
   (and (= (:op ast-node) :const)
@@ -91,27 +106,26 @@
     (when (string-const? ast)
       (:val ast))))
 
-(p/pprint (ast (+ 1 1)))
+#_(p/pprint (dissoc defa :meta ))
 
-(def defa (ast (def a 1)))
+#_(defmethod generate identity)
 
+#_(defmulti generate :def [node])
 
-(keys defa)
-
-
-
-(p/pprint (dissoc defa :meta ))
+(p/pprint (dissoc (first (:args (ast (let [a 1] a)))) :meta))
 
 
-(defmethod generate identity)
+(defn env-kick [node]
+  (cond
+   (map? node) (let [env-less-node (dissoc node :namespaces)]
+                 (into {} (map (fn [[k v]] {k (env-kick v)}) env-less-node)))
+   (vector? node)  (vec (map env-kick node))
+   :default node))
 
 
+(env-kick {:env {:local 1 :namespaces 1} :bla {:env 1 :bla 1} :blabla {:env 1 :bla 1}})
 
-(defmulti generate :def [node])
-
-
-
-
+(p/pprint (env-kick (ast (let [a 1] a))))
 
 
 
