@@ -92,7 +92,8 @@
 (defn is-int? [ast-node]
   (integer? (:val ast-node)))
 
-
+(defn is-float? [ast-node]
+  (float? (:val ast-node)))
 
 ;; Are there children
 ;; else No children
@@ -112,7 +113,7 @@
 
 #_(defmulti generate :def [node])
 
-(p/pprint (dissoc (first (:args (ast (let [a 1] a)))) :meta))
+#_(p/pprint (dissoc (first (:args (ast (let [a 1] a)))) :meta))
 
 
 (defn env-kick [node]
@@ -123,9 +124,50 @@
    :default node))
 
 
-(env-kick {:env {:local 1 :namespaces 1} :bla {:env 1 :bla 1} :blabla {:env 1 :bla 1}})
+#_(env-kick {:env {:local 1 :namespaces 1} :bla {:env 1 :bla 1} :blabla {:env 1 :bla 1}})
 
-(p/pprint (env-kick (ast (let [a 1] a))))
+#_(p/pprint (env-kick (ast (let [a 1] a))))
+
+
+#_(def mp (env-kick (ast
+   (loop [a 1 b 2]
+     (if (= a 10)
+      a
+      (recur (inc b) (inc a)))))))
+
+
+#_(def afn (env-kick (ast (fn ([a] (inc a)) ))))
+
+#_(ast (def myfuna (fn [a] a)))
+
+#_(p/pprint (env-kick (ast (defn abc [a] a))))
+
+#_(p/pprint mp)
+
+#_(keys mp) ;; (:op :form :env :loop-id :body :bindings :children)
+
+#_(:op mp) ;; :loop
+
+#_(:form mp) ;; (loop* [a 1] (if (= a 10) a (recur (inc a))))
+
+#_(:env mp) ;; {:loop-id loop_7145, :context :expr, :locals {}, :ns user}
+
+#_(println (:loop-id mp)) ;; loop_7145
+
+#_(println (:body mp))
+
+#_(println (:bindings mp)) ;; [{:op :binding,
+                         ;;   :env {:loop-id loop_7145, :context :expr, :locals {}, :ns user},
+                         ;;   :name a,
+                         ;;   :init  {:op :const, :env {:loop-id loop_7145, :context :expr, :locals {}, :ns user},
+                                 ;;   :type :number,
+                                 ;;   :literal? true,
+                                 ;;   :val 1, :form 1},
+                                 ;;   :form a,
+                                 ;;   :local :loop,
+                                 ;;   :children [:init]}]
+
+
 
 
 
