@@ -251,7 +251,9 @@ NSSETS  0     0
  :children [:bindings :body]}
     </xmp>
 </td>
-        <td> &nbsp; </td>
+        <td>
+            ;; Load Number Constnat Table Index 0 (1) into slot 0 <br>
+            CINT 0 0
     </tr>
 
     <tr>
@@ -792,13 +794,6 @@ NSSETS  0     0
         </td>
     </tr>
 
-
-
-
-
-
-
-
       <tr>
           <td>
               function
@@ -935,7 +930,166 @@ NSSETS  0     0
 
 
 
+      <tr>
+          <td>
+              Local binding referenced in function
+          </td>
+          <td>
+              <pre>
+                (let [a 1]
+                    (+ a 2))
+              </pre>
+          </td>
+          <td>
+          <pre>
 
+<xmp>
+
+
+{:op :let,
+ :form (let* [a 1] (+ a 2)),
+ :env {:context :expr, :locals {}, :ns user},
+ :body
+ {:body? true,
+  :op :do,
+  :env
+  {:context :expr,
+   :locals
+   {a
+    {:op :binding,
+     :env {:context :expr, :locals {}, :ns user},
+     :name a,
+     :init
+     {:op :const,
+      :env {:context :expr, :locals {}, :ns user},
+      :type :number,
+      :literal? true,
+      :val 1,
+      :form 1},
+     :form a,
+     :local :let,
+     :children [:init]}},
+   :ns user},
+  :form (do (+ a 2)),
+  :statements [],
+  :ret
+  {:children [:args :fn],
+   :meta {:line 139, :column 38, :end-line 139, :end-column 45},
+   :op :invoke,
+   :form (+ a 2),
+   :env
+   {:context :expr,
+    :locals
+    {a
+     {:op :binding,
+      :env {:context :expr, :locals {}, :ns user},
+      :name a,
+      :init
+      {:op :const,
+       :env {:context :expr, :locals {}, :ns user},
+       :type :number,
+       :literal? true,
+       :val 1,
+       :form 1},
+      :form a,
+      :local :let,
+      :children [:init]}},
+    :ns user},
+   :fn
+   {:form +,
+    :env
+    {:context :expr,
+     :locals
+     {a
+      {:op :binding,
+       :env {:context :expr, :locals {}, :ns user},
+       :name a,
+       :init
+       {:op :const,
+        :env {:context :expr, :locals {}, :ns user},
+        :type :number,
+        :literal? true,
+        :val 1,
+        :form 1},
+       :form a,
+       :local :let,
+       :children [:init]}},
+     :ns user},
+    :op :var,
+    :assignable? false,
+    :var #<Var@36471861:
+           #<core$_PLUS_ clojure.core$_PLUS_@33c06b38>>},
+   :args
+   [{:assignable? false,
+     :op :local,
+     :env
+     {:context :expr,
+      :locals
+      {a
+       {:op :binding,
+        :env {:context :expr, :locals {}, :ns user},
+        :name a,
+        :init
+        {:op :const,
+         :env {:context :expr, :locals {}, :ns user},
+         :type :number,
+         :literal? true,
+         :val 1,
+         :form 1},
+        :form a,
+        :local :let,
+        :children [:init]}},
+      :ns user},
+     :name a,
+     :form a,
+     :local :let,
+     :children []}
+    {:op :const,
+     :env
+     {:context :expr,
+      :locals
+      {a
+       {:op :binding,
+        :env {:context :expr, :locals {}, :ns user},
+        :name a,
+        :init
+        {:op :const,
+         :env {:context :expr, :locals {}, :ns user},
+         :type :number,
+         :literal? true,
+         :val 1,
+         :form 1},
+        :form a,
+        :local :let,
+        :children [:init]}},
+      :ns user},
+     :type :number,
+     :literal? true,
+     :val 2,
+     :form 2}]},
+  :children [:statements :ret]},
+ :bindings
+ [{:op :binding,
+   :env {:context :expr, :locals {}, :ns user},
+   :name a,
+   :init
+   {:op :const,
+    :env {:context :expr, :locals {}, :ns user},
+    :type :number,
+    :literal? true,
+    :val 1,
+    :form 1},
+   :form a,
+   :local :let,
+   :children [:init]}],
+ :children [:bindings :body]}
+
+</xmp>
+</pre>
+          </td>
+<td>
+</td>
+            </tr>
 
 
 

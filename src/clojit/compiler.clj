@@ -7,6 +7,8 @@
 
 (def splus (anal/ast (+ 1 2)))
 
+(def sletplus (anal/ast (let [a 1] (+ a 2))))
+
 (def ccompile 1)
 
 (def constant-table (ref {}))
@@ -48,6 +50,15 @@
              table-count)))))))
 
 
+(defn local-resolve [var-name env]
+  (let [val (:init ((:locals env) var-name))]
+    (if (= (:op val) :const)
+      (let [const-index (creat-constant-table-entery val constant-table)]
+        {:type :const
+         :index const-index})
+      {:type :unknown})))
+
+
 (defmulti clojit_plus (fn [node]
                         (vec (map :op (:args node)))))
 
@@ -62,6 +73,18 @@
          (CNUM 1 arg2-const-index)
          (ADDVV 2 0 1)]))))
 
+(defmethod clojit_plus [:local :const] [node]
+  (let [args (:args node)
+        local (first args)
+        const (second args)]
+    [
+     (let [resolved-local (local-resolve (:name local) (:env local))]
+       (if (= (:type resolved-local :const))
+         (CNUM 0 (:index resolved-local))
+         {:type :unkown})
+       )
+     (CNUM 1 (creat-constant-table-entery const constant-table))
+     (ADDVV 2 0 1)]))
 
 (defn CNUM [slot const-index]
   {:op (if (= :int (:type (@constant-table const-index)))
@@ -78,8 +101,6 @@
    :c c-slot})
 
 
-
-
 (defmulti invoke (comp :var :fn))
 
 (defmethod invoke #'+ [node]
@@ -91,12 +112,17 @@
 (defmethod ccompile :invoke [node]
   (invoke node))
 
+(defmethod ccompile :let [node]
+  (ccompile (:body node)))
+
+(defmethod ccompile :do [node]
+  (ccompile (:ret node)))
 
 (p/pprint constant-table)
 
-(p/pprint (ccompile splus))
+#_(p/pprint (ccompile splus))
 
-
+(p/pprint (ccompile sletplus))
 
 
 

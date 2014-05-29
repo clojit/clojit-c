@@ -136,6 +136,10 @@
       (recur (inc b) (inc a)))))))
 
 
+#_(def lplus (env-kick (ast (let [a 1] (+ a 2)))))
+
+#_(p/pprint lplus)
+
 #_(def afn (env-kick (ast (fn ([a] (inc a)) ))))
 
 #_(ast (def myfuna (fn [a] a)))
