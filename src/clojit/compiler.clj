@@ -64,7 +64,7 @@
 
 
 (defn CNUM [slot const-index]
-  {:op (if (= :int (@constant-table const-index))
+  {:op (if (= :int (:type (@constant-table const-index)))
          :CINT
          :CFLOAT)
    :a slot
@@ -78,6 +78,8 @@
    :c c-slot})
 
 
+
+
 (defmulti invoke (comp :var :fn))
 
 (defmethod invoke #'+ [node]
@@ -89,6 +91,8 @@
 (defmethod ccompile :invoke [node]
   (invoke node))
 
+
+(p/pprint constant-table)
 
 (p/pprint (ccompile splus))
 
