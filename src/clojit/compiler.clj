@@ -68,7 +68,6 @@
     (when (every? #(= :number %)
                 (map :type args))
       (let [[arg1-const-index arg2-const-index] (map #(creat-constant-table-entery % constant-table) args)]
-        [arg1-const-index arg2-const-index]
         [(CNUM 0 arg1-const-index)
          (CNUM 1 arg2-const-index)
          (ADDVV 2 0 1)]))))
