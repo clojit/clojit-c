@@ -136,9 +136,9 @@
       (recur (inc b) (inc a)))))))
 
 
-#_(def lplus (env-kick (ast (let [a 1] (+ a 2)))))
+(def lplus (env-kick (ast (let [a (+ 1 3)] (+ a 2)))))
 
-#_(p/pprint lplus)
+(p/pprint lplus)
 
 #_(def afn (env-kick (ast (fn ([a] (inc a)) ))))
 

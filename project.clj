@@ -7,4 +7,5 @@
 		 	           [org.clojure/tools.analyzer "0.1.0-alpha2"]
                  [org.clojure/tools.reader "0.8.3"]
                  [org.clojure/data.json "0.2.4"]
+                 [org.clojure/tools.trace "0.7.8"]
                  ])
