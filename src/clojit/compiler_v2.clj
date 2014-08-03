@@ -1,98 +1,84 @@
 (ns clojit.compiler-v2
   (:require
     [clojit.analyzer :as anal]
+    [clojit.bytecode-fn :as bcf]
     [clojure.pprint :as p]
     [clojure.data.json :as json]
     [clojure.tools.reader.edn :as edn]
-    [clojure.tools.trace :as t]
-   ))
-
-(declare ccompile find-constant-index)
-
-(def sletplus (anal/ast (let [a 1] (+ a 2))))
-
-(def empty-sourcmap {:line-counter 0 :bytecode []})
-
-(def ^:dynamic *source-map* nil)
-
-(def empty-constant-table
-                     {:CSTR []
-                      :CKEY []
-                      :CINT []
-                      :CFLOAT []})
-
-(def constant-table (ref empty-constant-table))
-
-(defn find-constant-index [op const]
-  (first (remove nil? (map-indexed (fn [a b] (when (= b const)
-                           a))
-               (op @constant-table)))))
-
-(defn put-in-constant-table [op const]
-  (if (find-constant-index op const)
-    @constant-table
-    (dosync
-     (alter constant-table assoc op (conj (op @constant-table) const)))))
-
-(defn ADDVV [a-slot b-slot c-slot]
-  {:op :ADDVV
-   :a a-slot
-   :b b-slot
-   :c c-slot})
-
-(defn JUMPF [a-slot d-slot]
-  {:op :JUMPF
-   :a a-slot
-   :d d-slot})
-
-(defn JUMP [d-slot]
-  {:op :JUMP
-   :d d-slot})
+    [clojure.tools.trace :as t]))
 
 
+(declare ccompile)
 
-(defn constant-table-bytecode [bytecode a-slot const]
-  {:op bytecode
-   :a a-slot
-   :d (find-constant-index bytecode const)})
+;; ----------------------- MATH ----------------------------
 
-(defn bool-bytecode [a-slot const]
-  {:op :CBOOL
-   :a a-slot
-   :d (if const 1 0)})
-
-(defn clojit_plus [node slot]
+(defn clojit_plus [node slot env]
   (let [[arg1 arg2] (:args node)
-        arg1_bytecode (ccompile arg1 slot)
+        arg1_bytecode (ccompile arg1 slot env)
         slot-1 (inc slot)
-        arg2_bytecode (ccompile arg2 slot-1)]
+        arg2_bytecode (ccompile arg2 slot-1 env)]
     [arg1_bytecode
      arg2_bytecode
-     (ADDVV slot slot slot-1)]))
+     (bcf/ADDVV slot slot slot-1)]))
 
-(defmulti invoke (comp :var :fn))
+;; ----------------------- INVOKE ----------------------------
 
-(defmethod invoke #'+ [node slot]
-    (clojit_plus node slot))
+(defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
+
+(defmethod invoke #'+ [node slot env]
+    (clojit_plus node slot env))
+
+(defmethod invoke :default [node slot env]
+  (let [args (:args node)
+        arg-slots (take (count args) (drop (+ 2 slot) (range)))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))
+        base (inc slot)]
+    [arg-bc
+     (ccompile (:fn node) base env)
+     (bcf/CALL base (count args))
+     ]))
+
+;; ----------------------- ccompile ----------------------------
+
+(defmulti ccompile (fn [node slot env] (:op node)))
 
 
+;; how and where does VM save top levle devs?
+(defmethod ccompile :def [node slot env]
+  (bcf/put-in-constant-table :CSTR (:name node))
+  [(ccompile (:init node) slot env)
+   (bcf/NSSETS slot (bcf/find-constant-index (:name node)))])
+
+(defmethod ccompile :invoke [node slot env]
+  [(invoke node slot env)])
+
+;; Compiling let, how do we tell the subnodes where the bindings where saved? Rewrite subtree? Or should we pass a env var down?
+
+(defmethod ccompile :let [node slot env]
+  (let [bindings (:bindings node)
+        binding-slots (drop slot (range))
+        new-env (apply merge (map (fn [b s] {(:name b) s})
+                            bindings
+                            binding-slots))
+        merge-env (merge env new-env)]
+    [(map ccompile bindings binding-slots (repeat merge-env))
+     (ccompile (:body node) (+ slot (count bindings)) merge-env)]))
+
+(defmethod ccompile :binding [node slot env]
+  [(ccompile (:init node) slot env)])
 
 
+(defmethod ccompile :local [node slot env]
+  (let [source (get env (:name node))]
+    (bcf/MOV slot source)))
 
 
+(defmethod ccompile :do [node slot env]
+  [(map ccompile (:statments node) (repeat slot) (repeat env))
+   (ccompile (:ret node) slot env)])
 
-
-
-(defmulti ccompile :op)
-
-(defmethod ccompile :invoke [node slot]
-  [(invoke node slot)])
-
-(defmethod ccompile :let [node slot]
-  [(ccompile (:body node))])
-
-(defmethod ccompile :do [node slot]
-  [(ccompile (:ret node))])
+#_(defmethod ccompile :maybe-class [node slot env]
+  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (:class node)))])
 
 ;;-------------------------------------
 ;; 1..5   slot = test-bc             --
@@ -101,17 +87,17 @@
 ;; 11     jump (count else- bc)      --
 ;; 12..15 slot = else-bc             --
 ;;-------------------------------------
-(defmethod ccompile :if [node slot]
-  (let [test-bc (flatten (ccompile (:test node) slot))
-        then-bc (flatten (ccompile (:then node) slot))
-        else-bc (flatten (ccompile (:else node) slot))]
+(defmethod ccompile :if [node slot env]
+  (let [test-bc (flatten (ccompile (:test node) slot env))
+        then-bc (flatten (ccompile (:then node) slot env))
+        else-bc (flatten (ccompile (:else node) slot env))]
     [test-bc
-     (JUMPF slot (inc (count then-bc)))
+     (bcf/JUMPF slot (inc (count then-bc)))
      then-bc
-     (JUMP (count else-bc))
+     (bcf/JUMP (count else-bc))
      else-bc]))
 
-(defmethod ccompile :const [node slot]
+(defmethod ccompile :const [node slot env]
   (let [op
         (cond
          (anal/is-int? node) :CINT
@@ -120,96 +106,108 @@
          (= :keyword (:type node)) :CKEY
          (= :bool (:type node)) :CBOOL)]
     (if (= op :CBOOL)
-      [(bool-bytecode slot (:val node))]
+      [(bcf/bool-bytecode slot (:val node))]
       (do (when-not (= op :CBOOL)
-            (put-in-constant-table
+            (bcf/put-in-constant-table
              op
              (:val node)))
-        [(constant-table-bytecode
+        [(bcf/constant-table-bytecode
          op
          slot
          (:val node))]))))
 
 
+;; ----------------------- main compile ----------------------------
+
+(defn c [node]
+  (p/pprint (anal/env-kick node))
+  (flatten (ccompile node 0 {})))
+
+(defn print-node [node]
+  (p/pprint (anal/env-kick node)))
+
+;; --------------------------- let ---------------------------------
+
+
+
+#_(def let-test (anal/ast (let [a 1] (if true (+ a a) (+ 10 a)))))
+
+#_(print-node let-test)
+#_(print-node (:bindings let-test))
+#_(print-node (:body let-test))
+
+#_(print-node (:ret (:body let-test)))
+
+#_(print-node   (:body let-test))
+
+#_(p/pprint (c let-test))
+
+;; --------------------------- any fn ---------------------------------
+
+#_(def any-fn-test (anal/ast (fn [] 1 2)))
+
+#_(print-node any-fn-test)
+
+
+;; --------------------------- Do -------------------------------------
+
+#_(def do-test (anal/ast (do 1 2)))
+
+
+#_(print-node do-test)
 
 ;; --------------------------- Function call -------------------------------------
 
-(drop 1 (range))
-(let [args [1 2 3 4]]
-  )
+#_(def test-fn-ast (anal/ast (test-fn 1 2)))
 
+#_(p/pprint (anal/env-kick test-fn-ast))
 
-(defn CALL [a-slot lit]
-  [{:op :CALL :a-slot a-slot :d-slot lit}])
+#_(def test-fn-bc (c test-fn-ast))
 
-
-
-(range 5)
-
-(defmethod invoke :default [node slot]
-  (let [args (:args node)
-        arg-slots (take (count args) (drop (+ 2 slot) (range)))
-        arg-bc (mapcat ccompile args arg-slots)
-        ]
-
-    [arg-bc
-     (ccompile (:fn slot) (inc slot))
-     (CALL base (count args))
-     ]
-    )
-  )
-
-
-
-
-(defn clojit_plus [node slot]
-  (let [[arg1 arg2] (:args node)
-        arg1_bytecode (ccompile arg1 slot)
-        slot-1 (inc slot)
-        arg2_bytecode (ccompile arg2 slot-1)]
-    [arg1_bytecode
-     arg2_bytecode
-     (ADDVV slot slot slot-1)]))
-
-
-
-(def test-fn-ast (anal/ast (test-fn 1 2)))
-
-(p/pprint (anal/env-kick test-fn-ast))
-
-(def test-fn-bc (flatten (ccompile test-fn-ast 0)))
-
-
-(p/pprint bc-ast-if)
-
+#_(p/pprint bc-ast-if)
 
 ;; --------------------------- ast-if -------------------------------------
 
-(def ast-if (anal/ast (if (+ 1 1)
+#_(def ast-if (anal/ast (if (+ 1 1)
                         (+ 2 2)
                         (+ 3 3))))
 
-(def bc-ast-if (flatten (ccompile ast-if 0)))
+#_(def bc-ast-if (flatten (ccompile ast-if 0 env)))
 
-(p/pprint (anal/env-kick ast-if))
-(p/pprint bc-ast-if)
+#_(p/pprint (anal/env-kick ast-if))
+#_(p/pprint bc-ast-if)
+
 
 ;; --------------------------- bool -------------------------------------
 
-(def bool-test (anal/ast (if true 1 9)))
+#_(def bool-test (anal/ast (if true
+                           (+ 1 6) 9)))
 
-(def bc-bool-test (flatten (ccompile bool-test 0)))
+#_(def bc-bool-test (flatten (ccompile bool-test 0 {})))
 
-(p/pprint (anal/env-kick bc-bool-test))
+#_(p/pprint bc-bool-test)
 
-;; --------------------------- constant-table -------------------------------------
+#_(print-node bool-test)
 
-(p/pprint @constant-table)
+#_(p/pprint (anal/env-kick bc-bool-test))
 
-(defn set-empty []
-  (dosync (alter constant-table (fn [ct] empty-constant-table))))
 
-(set-empty)
+#_(print-node (anal/ast (+ 1 1)))
 
+#_(p/pprint (c (anal/ast (+ 1 1))))
+#_(p/pprint @bcf/constant-table)
+
+
+;; --------------------------- def -------------------------------------
+
+#_(def def-test (anal/ast (def a 1)))
+
+#_(keys def-test)
+
+#_(:name def-test)
+
+#_(:op def-test)
+
+#_(print-node (dissoc def-test :meta ))
 
 
