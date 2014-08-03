@@ -27,13 +27,13 @@ Reads D from const. table and writes it into destination slot A.
 
     OP       A       D
 
-    NSGETV   -      var
-    NSGETS   -      str
+    NSSETS   var     str    ns[str] = var
 
-    NSSETV   var    var
-    NSSETS   var    str
+    NSGETS   var     str    var = ns[str]
 
-Gets a symbol D from the namespace environment, or sets the symbol D to the value of variable A.
+NSSETS sets A to constant table string in namespace (this only exists in the VM).
+
+NSGETS sets A to value of var (clojure var is toplevel definition) D.
 
 ## Variable Slots
 
