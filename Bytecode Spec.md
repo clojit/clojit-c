@@ -22,6 +22,7 @@ Clojure Bytecode Spec
     CFLOAT  dst     float
     CBOOL   dst     bool
     CNIL    dst     nil
+    CFUNC   dst     fn
     
 Reads D from const. table (if required) and writes it into destination slot A.
 
