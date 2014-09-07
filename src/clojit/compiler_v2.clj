@@ -12,21 +12,56 @@
 
 ;; ----------------------- MATH ----------------------------
 
-(defn clojit_plus [node slot env]
-  (let [[arg1 arg2] (:args node)
-        arg1_bytecode (ccompile arg1 slot env)
-        slot-1 (inc slot)
-        arg2_bytecode (ccompile arg2 slot-1 env)]
-    [arg1_bytecode
-     arg2_bytecode
-     (bcf/ADDVV slot slot slot-1)]))
+(defn binop-reduce
+  [slot env op acc arg]
+    (let [arg-slot (inc slot)
+          arg-bc (ccompile arg arg-slot env)]
+    [acc arg-bc (op slot slot arg-slot)]))
+
+(defn binop [op node slot env]
+  (let [[first-arg & args] (:args node)
+        first-bc (ccompile first-arg slot env)
+        reducer (partial binop-reduce slot env op)]
+    (flatten (reduce reducer first-bc args))))
+
+(defn unitbinop [op unit node slot env]
+  (if (empty? (:args node))
+    (do
+      (bcf/put-in-constant-table :CINT unit)
+      (bcf/constant-table-bytecode :CINT slot unit))
+    (binop op node slot env)))
+
 
 ;; ----------------------- INVOKE ----------------------------
 
 (defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
 
 (defmethod invoke #'+ [node slot env]
-    (clojit_plus node slot env))
+  (unitbinop bcf/ADDVV 0 node slot env))
+
+(defmethod invoke #'* [node slot env]
+  (unitbinop bcf/MULVV 1 node slot env))
+
+(defmethod invoke #'- [node slot env]
+  (let [args (:args node)]
+    (if (= 1 (count args))
+      (conj (ccompile (first args) slot env) (bcf/NEG slot slot))
+      (binop bcf/SUBVV node slot env))))
+
+(defmethod invoke #'/ [node slot env]
+  (let [args (:args node)]
+    (if (> 1 (count args))
+      (binop bcf/DIVVV node slot env)
+      (let [one-slot slot
+            one-bc (do
+                     (bcf/put-in-constant-table :CINT 1)
+                     (bcf/constant-table-bytecode :CINT one-slot 1))
+            arg (first args)
+            arg-slot (inc slot)
+            arg-bc (ccompile arg arg-slot env)
+            div-bc (bcf/DIVVV slot one-slot arg-slot)]
+        (flatten [one-bc arg-bc div-bc])))))
+
 
 (defmethod invoke :default [node slot env]
   (let [args (:args node)

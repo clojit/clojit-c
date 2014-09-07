@@ -34,8 +34,11 @@
 (defn DIVVV [a-slot b-slot c-slot]
   (bc-gen :DIVVV a-slot b-slot c-slot))
 
-(defn POW [a-slot b-slot c-slot]
-  (bc-gen :POW a-slot b-slot c-slot))
+(defn MODVV [a-slot b-slot c-slot]
+  (bc-gen :MODVV a-slot b-slot c-slot))
+
+(defn POWVV [a-slot b-slot c-slot]
+  (bc-gen :POWVV a-slot b-slot c-slot))
 
 (defn ISLT [a-slot b-slot c-slot]
   (bc-gen :ISLT a-slot b-slot c-slot))
@@ -75,8 +78,15 @@
    :a a-slot
    :d d-slot})
 
+(defn NOT [a-slot d-slot]
+  {:op :NOT
+   :a a-slot
+   :d d-slot})
 
-
+(defn NEG [a-slot d-slot]
+  {:op :NEG
+   :a a-slot
+   :d d-slot})
 
 (defn NSGETS [a-slot d-slot-str]
    [{:op :NSGETS
