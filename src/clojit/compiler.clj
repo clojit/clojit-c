@@ -33,7 +33,7 @@
       (bcf/constant-table-bytecode :CINT slot unit))
     (binop op node slot env)))
 
-;; ----------------------- INVOKE ----------------------------
+;; ----------------------- INVOKE --- Math ----------------------
 
 (defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
 
@@ -64,6 +64,36 @@
             arg-bc (ccompile arg arg-slot env)
             div-bc (bcf/DIVVV slot one-slot arg-slot)]
         (flatten [one-bc arg-bc div-bc])))))
+
+
+
+;; ----------------------- INVOKE --- Math ----------------------
+
+
+(comment
+    ISLT	dst var	var	    A = B < C
+    ISGE	dst var	var     A = B ≥ C
+    ISLE	dst var var	    A = B ≤ C
+    ISGT	dst var var	    A = B > C
+    ISEQ	dst var var	    A = B == C
+    ISNEQ	dst var var	    A = B ≠ C
+)
+
+
+(defmethod invoke #'< [node slot env]
+  (bcf/ISLT))
+
+(defmethod invoke #'>=  [node slot env]
+  (bcf/ISGE) )
+
+(defmethod invoke #'>=  [node slot env]
+  (bcf/ISLE))
+
+(defmethod invoke #'>  [node slot env]
+  bcf/ISGT)
+
+(defmethod invoke #'==  [node slot env]
+  bcf/ISEQ)
 
 (defmethod invoke :default [node slot env]
   (let [args (:args node)
@@ -117,15 +147,18 @@
                     (ccompile (:body method) slot env)])))
     [(bcf/CFUNC slot id)]))
 
-#_(c any-fn-test)
-
 (defmethod ccompile :local [node slot env]
   (let [source (get env (:name node))]
     (bcf/MOV slot source)))
 
 (defmethod ccompile :do [node slot env]
-  [(map ccompile (:statments node) (repeat slot) (repeat env))
-   (ccompile (:ret node) slot env)])
+  (let [statements (map ccompile (:statements node) (repeat slot) (repeat env))
+        ret (ccompile (:ret node) slot env)]
+   #_(println "statements: ")
+    #_(p/pprint statements)
+    #_(println "ret: ")
+    #_(p/pprint ret)
+    (vec (concat statements ret))))
 
 (defmethod ccompile :maybe-class [node slot env]
   [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (:class node)))])
@@ -167,24 +200,11 @@
          (:val node))]))))
 
 
-;; ----------------------- main compile ----------------------------
 
-(defn print-node [node]
-  (p/pprint (dissoc (anal/env-kick node) :meta)))
-
-(defn c0 [node]
-  (vec (flatten (ccompile node 0 {}))))
-
-(defn c [node]
-  (print-node node)
-  (let [bc (c0 node)]
-    (p/pprint bc)
-    (p/pprint @bcf/constant-table)
-    bc))
 ;; ----------------------- file output --------------------------------
 
 (sm/defn ^:always-validate
-  gen-bytecode-output-data :- bcv/Bytecode-Output-Data [bc :- bcv/Bytecode-List]
+  gen-bytecode-output-data  [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)
       bytecode-output))
@@ -198,6 +218,19 @@
     (spit "clojure-bc.json" bytecode-output-json)))
 
 
+;; ----------------------- main compile ----------------------------
+
+(defn print-node [node]
+  (p/pprint (dissoc (anal/env-kick node) :meta)))
+
+(defn c0 [node]
+  (vec (flatten (ccompile node 0 {}))))
+
+(defn c [node]
+  (print-node node)
+  (let [bc (c0 node)]
+    (gen-bytecode-output-data bc)))
+
 
 ;; --------------------------- gen-file-output ---------------------------------
 
@@ -209,13 +242,18 @@
 
 #_(anal/env-kick (anal/ast (fn [a] a)))
 
-#_(def any-fn-test (anal/ast (do (fn [a] a) (fn [b] (+ b 1)))))
+(def any-fn-test (anal/ast  '(do (def a 83) (fn [b] (+ b 8)))))
+
+(def any-fn-test-2 (anal/ast (do (fn [a] a) (fn [b] (+ b 1)))))
 
 #_(p/pprint (anal/env-kick any-fn-test))
 
 #_(bcf/set-empty)
 
-#_(c any-fn-test)
+(p/pprint (c any-fn-test))
+
+
+(p/pprint (c (anal/ast '(do (def t 1) (fn [] 99)))))
 
 ;; --------------------------- def ---------------------------------
 
