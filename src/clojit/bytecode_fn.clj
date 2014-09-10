@@ -3,18 +3,17 @@
     [clojure.pprint :as p]
     [clojure.tools.trace :as t]))
 
-
 (declare find-constant-index bc-gen)
 
 (def empty-constant-table
                      {:CSTR []
                       :CKEY []
                       :CINT []
-                      :CFLOAT []})
+                      :CFLOAT []
+                      :CFUNC {}})
 
 
 (def constant-table (ref empty-constant-table))
-
 
 (defn bc-gen [inst a-slot b-slot c-slot]
   {:op inst
@@ -55,7 +54,6 @@
 (defn ISNEQ [a-slot b-slot c-slot]
   (bc-gen :ISNEQ a-slot b-slot c-slot))
 
-
 (defn JUMPF [a-slot d-slot]
   {:op :JUMPF
    :a a-slot
@@ -63,25 +61,23 @@
 
 (defn JUMP [d-slot]
   {:op :JUMP
+   :a nil
    :d d-slot})
 
 (defn CALL [a-slot lit]
   [{:op :CALL
-    :a-slot a-slot
-    :d-slot lit}])
+    :a a-slot
+    :d lit}])
 
 (defn MOV [a-slot d-slot]
   {:op :MOV
    :a a-slot
    :d d-slot})
 
-
-
-
 (defn NSGETS [a-slot d-slot-str]
    [{:op :NSGETS
-     :a-slot a-slot
-     :d-slot d-slot-str}])
+     :a a-slot
+     :d d-slot-str}])
 
 (defn constant-table-bytecode [bytecode a-slot const]
   {:op bytecode
@@ -98,14 +94,32 @@
    :a a-slot
    :d d-slot})
 
+(defn FUNCF [a-slot-arg-count]
+  {:op :FUNCF
+   :a a-slot-arg-count
+   :d nil})
+
+(defn CFUNC [a-slot d-slot]
+  {:op :CFUNC
+   :a a-slot
+   :d d-slot})
+
+(defn CNIL [a-slot]
+  {:op :CNIL
+   :a a-slot
+   :d nil})
 
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
-
 (defn find-constant-index [op const]
-  (first (remove nil? (map-indexed (fn [a b] (when (= b const)
-                           a))
-               (op @constant-table)))))
+  (first (remove nil? (map-indexed (fn [a b]
+                                     (when (= b const)
+                                       a))
+                                   (op @constant-table)))))
+
+
+(defn find-fn-index [k]
+  (get (:CFUNC @constant-table) k))
 
 (defn put-in-constant-table [op const]
   (if (find-constant-index op const)
@@ -113,8 +127,12 @@
     (dosync
      (alter constant-table assoc op (conj (op @constant-table) const)))))
 
+(defn put-in-function-table [k f]
+  (dosync
+   (alter constant-table assoc-in [:CFUNC k] f)))
 
 (defn set-empty []
   (dosync (alter constant-table (fn [ct] empty-constant-table))))
+
 
 

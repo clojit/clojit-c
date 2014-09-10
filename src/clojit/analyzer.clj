@@ -70,7 +70,12 @@
                                     (reset-meta! (meta sym))))
              a/parse a/-parse
              a/var? ~var?]
-     (a/analyze '~form e2)))
+     (a/analyze ~form e2)))
+
+
+(defn fast [form]
+  (ast form))
+
 
 (defmacro mexpand [form]
   `(macroexpand-1 '~form e2))
@@ -136,9 +141,9 @@
       (recur (inc b) (inc a)))))))
 
 
-(def lplus (env-kick (ast (let [a (+ 1 3)] (+ a 2)))))
+#_(def lplus (env-kick (ast (let [a (+ 1 3)] (+ a 2)))))
 
-(p/pprint lplus)
+#_(p/pprint lplus)
 
 #_(def afn (env-kick (ast (fn ([a] (inc a)) ))))
 
