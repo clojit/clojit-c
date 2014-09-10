@@ -26,11 +26,11 @@
         reducer (partial binop-reduce slot env op)]
     (flatten (reduce reducer first-bc args))))
 
-(defn unitbinop [op unit node slot env]
+(defn neutralbinop [op neutral node slot env]
   (if (empty? (:args node))
     (do
-      (bcf/put-in-constant-table :CINT unit)
-      (bcf/constant-table-bytecode :CINT slot unit))
+      (bcf/put-in-constant-table :CINT neutral)
+      (bcf/constant-table-bytecode :CINT slot neutral))
     (binop op node slot env)))
 
 ;; ----------------------- INVOKE --- Math ----------------------
@@ -38,11 +38,11 @@
 (defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
 
 (defmethod invoke #'+ [node slot env]
-  (unitbinop bcf/ADDVV 0 node slot env))
+  (neutralbinop bcf/ADDVV 0 node slot env))
 
 
 (defmethod invoke #'* [node slot env]
-  (unitbinop bcf/MULVV 1 node slot env))
+  (neutralbinop bcf/MULVV 1 node slot env))
 
 (defmethod invoke #'- [node slot env]
   (let [args (:args node)]
@@ -152,16 +152,15 @@
     (bcf/MOV slot source)))
 
 (defmethod ccompile :do [node slot env]
-  (let [statements (map ccompile (:statements node) (repeat slot) (repeat env))
+  (let [statements (doall (map ccompile (:statements node) (repeat slot) (repeat env)))
         ret (ccompile (:ret node) slot env)]
-   #_(println "statements: ")
-    #_(p/pprint statements)
-    #_(println "ret: ")
-    #_(p/pprint ret)
     (vec (concat statements ret))))
 
 (defmethod ccompile :maybe-class [node slot env]
   [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (:class node)))])
+
+(defmethod ccompile :var [node slot env]
+  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (:form node)))])
 
 ;;-------------------------------------
 ;; 1..5   slot = test-bc             --
@@ -199,12 +198,12 @@
          slot
          (:val node))]))))
 
-
-
 ;; ----------------------- file output --------------------------------
 
+(comment :- bcv/Bytecode-Output-Data )
+
 (sm/defn ^:always-validate
-  gen-bytecode-output-data  [bc :- bcv/Bytecode-List]
+  gen-bytecode-output-data :- bcv/Bytecode-Output-Data [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)
       bytecode-output))
@@ -242,18 +241,22 @@
 
 #_(anal/env-kick (anal/ast (fn [a] a)))
 
-(def any-fn-test (anal/ast  '(do (def a 83) (fn [b] (+ b 8)))))
+#_(def any-fn-test (anal/ast  '(do (def a 83) (fn [b] (+ b 8)))))
 
-(def any-fn-test-2 (anal/ast (do (fn [a] a) (fn [b] (+ b 1)))))
+#_(def any-fn-test-2 (anal/ast (do (fn [a] a) (fn [b] (+ b 1)))))
 
-#_(p/pprint (anal/env-kick any-fn-test))
+#_(p/pprint (anal/env-kick (anal/ast '(t))))
 
 #_(bcf/set-empty)
 
-(p/pprint (c any-fn-test))
+#_(p/pprint (c any-fn-test))
 
+#_(p/pprint (c (anal/ast '(do
+                          (def t (fn [] 99))
+                          (t)))))
 
-(p/pprint (c (anal/ast '(do (def t 1) (fn [] 99)))))
+#_(p/pprint (c (anal/ast '(t))))
+
 
 ;; --------------------------- def ---------------------------------
 
