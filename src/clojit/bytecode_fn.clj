@@ -5,6 +5,8 @@
 
 (declare find-constant-index bc-gen)
 
+(defmacro dbg[x] `(let [x# ~x] (println '~x "=" x#) x#))
+
 (def empty-constant-table
                      {:CSTR []
                       :CKEY []
@@ -123,6 +125,7 @@
    :d nil})
 
 ;; ----------------------- CONSTANT TABLE ----------------------------
+
 
 (defn find-constant-index [op const]
   (first (remove nil? (map-indexed (fn [a b]
