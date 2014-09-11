@@ -99,6 +99,11 @@
      :a a-slot
      :d d-slot-str}])
 
+(defn NSSETS [a-slot d-slot]
+  {:op :NSSETS
+   :a a-slot
+   :d d-slot})
+
 (defn constant-table-bytecode [bytecode a-slot const]
   {:op bytecode
    :a a-slot
@@ -109,10 +114,7 @@
    :a a-slot
    :d (if const 1 0)})
 
-(defn NSSETS [a-slot d-slot]
-  {:op :NSSETS
-   :a a-slot
-   :d d-slot})
+
 
 (defn FUNCF [a-slot-arg-count]
   {:op :FUNCF
