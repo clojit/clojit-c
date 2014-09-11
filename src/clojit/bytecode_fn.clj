@@ -74,6 +74,11 @@
     :a a-slot
     :d lit}])
 
+(defn RET [a]
+  [{:op :RET
+    :a a
+    :d nil}])
+
 (defn MOV [a-slot d-slot]
   {:op :MOV
    :a a-slot
@@ -126,13 +131,11 @@
 
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
-
 (defn find-constant-index [op const]
   (first (remove nil? (map-indexed (fn [a b]
                                      (when (= b const)
                                        a))
                                    (op @constant-table)))))
-
 
 (defn find-fn-index [k]
   (get (:CFUNC @constant-table) k))
@@ -149,6 +152,3 @@
 
 (defn set-empty []
   (dosync (alter constant-table (fn [ct] empty-constant-table))))
-
-
-
