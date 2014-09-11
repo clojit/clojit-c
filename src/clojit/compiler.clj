@@ -136,7 +136,7 @@
         local-env (apply merge (map-indexed (fn [i parm]
                                               {(:name parm) i})
                                             params))
-        env (merge env local-env)
+        env     (merge env local-env)
         argtc   (count params)
         argc    (:fixed-arity method)
         id      (Integer/parseInt (get-id (str (:loop-id method))))]
