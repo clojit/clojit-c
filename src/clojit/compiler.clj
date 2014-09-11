@@ -65,8 +65,6 @@
             div-bc (bcf/DIVVV slot one-slot arg-slot)]
         (flatten [one-bc arg-bc div-bc])))))
 
-
-
 ;; ----------------------- INVOKE --- Math ----------------------
 
 
@@ -109,9 +107,9 @@
 (defmulti ccompile (fn [node slot env] (:op node)))
 
 (defmethod ccompile :def [node slot env]
-  (bcf/put-in-constant-table :CSTR (:name node))
+  (bcf/put-in-constant-table :CSTR (str (:name node)))
   [(ccompile (:init node) slot env)
-   (bcf/NSSETS slot (bcf/find-constant-index :CSTR (:name node)))])
+   (bcf/NSSETS slot (bcf/find-constant-index :CSTR (str (:name node))))])
 
 (defmethod ccompile :invoke [node slot env]
   [(invoke node slot env)])
@@ -144,7 +142,8 @@
     (bcf/put-in-function-table
      id
      (vec (flatten [(bcf/FUNCF argc)
-                    (ccompile (:body method) slot env)])))
+                    (ccompile (:body method) slot env)
+                    (bcf/RET slot)])))
     [(bcf/CFUNC slot id)]))
 
 (defmethod ccompile :local [node slot env]
@@ -157,10 +156,10 @@
     (vec (concat statements ret))))
 
 (defmethod ccompile :maybe-class [node slot env]
-  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (:class node)))])
+  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:class node))))])
 
 (defmethod ccompile :var [node slot env]
-  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (:form node)))])
+  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))])
 
 ;;-------------------------------------
 ;; 1..5   slot = test-bc             --
@@ -169,6 +168,7 @@
 ;; 11     jump (count else- bc)      --
 ;; 12..15 slot = else-bc             --
 ;;-------------------------------------
+
 (defmethod ccompile :if [node slot env]
   (let [test-bc (flatten (ccompile (:test node) slot env))
         then-bc (flatten (ccompile (:then node) slot env))
@@ -200,12 +200,11 @@
 
 ;; ----------------------- file output --------------------------------
 
-(comment :- bcv/Bytecode-Output-Data )
-
 (sm/defn ^:always-validate
   gen-bytecode-output-data :- bcv/Bytecode-Output-Data [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)
+      (p/pprint bytecode-output)
       bytecode-output))
 
 (sm/defn ^:always-validate
@@ -251,9 +250,16 @@
 
 #_(p/pprint (c any-fn-test))
 
-#_(p/pprint (c (anal/ast '(do
+(p/pprint (c (anal/ast '(do
                           (def t (fn [] 99))
                           (t)))))
+
+
+
+(p/pprint (anal/env-kick (anal/ast '(fn [b] 1))))
+
+
+
 
 #_(p/pprint (c (anal/ast '(t))))
 
