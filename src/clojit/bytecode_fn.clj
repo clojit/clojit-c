@@ -119,6 +119,11 @@
    :a a-slot-arg-count
    :d nil})
 
+(defn FUNCV [a-slot-arg-count]
+  {:op :FUNCV
+   :a a-slot-arg-count
+   :d nil})
+
 (defn CFUNC [a-slot d-slot]
   {:op :CFUNC
    :a a-slot

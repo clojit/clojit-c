@@ -137,11 +137,13 @@
                                   {(:name parm) i})
                                             params))
         env (merge env local-env)
-        argc    (count params)
+        argc    (:fixed-arity method)
         id      (Integer/parseInt (get-id (str (:loop-id method))))]
     (bcf/put-in-function-table
      id
-     (vec (flatten [(bcf/FUNCF argc)
+     (vec (flatten [(if (:variadic? method)
+                      (bcf/FUNCV argc)
+                      (bcf/FUNCF argc))
                     (ccompile (:body method) slot env)
                     (bcf/RET slot)])))
     [(bcf/CFUNC slot id)]))
