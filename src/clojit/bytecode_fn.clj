@@ -95,9 +95,9 @@
    :d d-slot})
 
 (defn NSGETS [a-slot d-slot-str]
-   [{:op :NSGETS
+   {:op :NSGETS
      :a a-slot
-     :d d-slot-str}])
+     :d d-slot-str})
 
 (defn NSSETS [a-slot d-slot]
   {:op :NSSETS
@@ -135,6 +135,23 @@
   {:op :CNIL
    :a a-slot
    :d nil})
+
+(defn NEWARRAY [dst a]
+  {:op :NEWARRAY
+   :a a
+   :d nil})
+
+(defn GETARRAY [dst src idx]
+  {:op :GETARRAY
+   :a dst
+   :b src
+   :c idx})
+
+(defn SETARRAY [dst src idx]
+  {:op :SETARRAY
+   :a dst
+   :b src
+   :c idx})
 
 ;; ----------------------- CONSTANT TABLE ----------------------------
 

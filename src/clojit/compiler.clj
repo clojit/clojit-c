@@ -7,8 +7,7 @@
     [clojure.data.json :as json]
     [clojure.tools.reader.edn :as edn]
     [clojure.tools.trace :as t]
-    [schema.macros :as sm]
-    ))
+    [schema.macros :as sm]))
 
 (declare ccompile)
 
@@ -40,7 +39,6 @@
 (defmethod invoke #'+ [node slot env]
   (neutralbinop bcf/ADDVV 0 node slot env))
 
-
 (defmethod invoke #'* [node slot env]
   (neutralbinop bcf/MULVV 1 node slot env))
 
@@ -49,7 +47,6 @@
     (if (= 1 (count args))
       (conj (ccompile (first args) slot env) (bcf/NEG slot slot))
       (binop bcf/SUBVV node slot env))))
-
 
 (defmethod invoke #'/ [node slot env]
   (let [args (:args node)]
@@ -67,6 +64,14 @@
 
 ;; ----------------------- INVOKE --- Math ----------------------
 
+(defmethod invoke #'aset [node slot env]
+  (let [args (:args node)
+        arg-slots (take (count args) (drop slot (range)))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    #_(bcf/dbg arg-bc)
+    [arg-bc
+     (apply bcf/SETARRAY arg-slots)]))
+
 
 (comment
     ISLT	dst var	var	    A = B < C
@@ -77,12 +82,18 @@
     ISNEQ	dst var var	    A = B ≠ C
 )
 
+(defmethod invoke #'aget [node slot env]
+  (let [args (:args node)
+        arg-slots (take (count args) (drop slot (range)))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/GETARRAY (+ (count args) slot) (first arg-slots) (second arg-slots))]))
 
 (defmethod invoke #'< [node slot env]
   (bcf/ISLT))
 
 (defmethod invoke #'>=  [node slot env]
-  (bcf/ISGE) )
+  (bcf/ISGE))
 
 (defmethod invoke #'>=  [node slot env]
   (bcf/ISLE))
