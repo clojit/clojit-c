@@ -134,9 +134,10 @@
   (let [method  (first (:methods node))
         params  (:params method)
         local-env (apply merge (map-indexed (fn [i parm]
-                                  {(:name parm) i})
+                                              {(:name parm) i})
                                             params))
-        env (merge env local-env)
+        env     (merge env local-env)
+        argtc   (count params)
         argc    (:fixed-arity method)
         id      (Integer/parseInt (get-id (str (:loop-id method))))]
     (bcf/put-in-function-table
@@ -144,13 +145,13 @@
      (vec (flatten [(if (:variadic? method)
                       (bcf/FUNCV argc)
                       (bcf/FUNCF argc))
-                    (ccompile (:body method) slot env)
-                    (bcf/RET slot)])))
+                    (ccompile (:body method) (+ argtc slot) env)
+                    (bcf/RET (+ argtc slot))])))
     [(bcf/CFUNC slot id)]))
 
 (defmethod ccompile :local [node slot env]
   (let [source (get env (:name node))]
-    (bcf/MOV slot source)))
+    [(bcf/MOV slot source)]))
 
 (defmethod ccompile :do [node slot env]
   (let [statements (doall (map ccompile (:statements node) (repeat slot) (repeat env)))
