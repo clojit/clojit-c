@@ -210,7 +210,6 @@
   gen-bytecode-output-data :- bcv/Bytecode-Output-Data [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)
-      (p/pprint bytecode-output)
       bytecode-output))
 
 (sm/defn ^:always-validate
@@ -256,13 +255,13 @@
 
 #_(p/pprint (c any-fn-test))
 
-(p/pprint (c (anal/ast '(do
+#_(p/pprint (c (anal/ast '(do
                           (def t (fn [] 99))
                           (t)))))
 
 
 
-(p/pprint (anal/env-kick (anal/ast '(fn [b] 1))))
+#_(p/pprint (anal/env-kick (anal/ast '(fn [b] 1))))
 
 
 
