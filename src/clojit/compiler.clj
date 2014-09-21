@@ -95,13 +95,13 @@
 
 (defmethod invoke :default [node slot env]
   (let [args (:args node)
-        arg-slots (take (count args) (drop (+ 2 slot) (range)))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))
-        func-slot (inc slot)
         base slot
-        lit (inc (count args))]
+        arg-count (count args)
+        arg-slots (take arg-count (drop (+ 2 base) (range)))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))
+        func-slot (inc base)
+        lit (inc arg-count)]
     [arg-bc
-     (ccompile (:fn node) base env)
      (ccompile (:fn node) func-slot env)
      (bcf/CALL base lit)]))
 
