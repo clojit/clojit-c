@@ -97,10 +97,13 @@
   (let [args (:args node)
         arg-slots (take (count args) (drop (+ 2 slot) (range)))
         arg-bc (mapcat ccompile args arg-slots (repeat env))
-        base (inc slot)]
+        func-slot (inc slot)
+        base slot
+        lit (inc (count args))]
     [arg-bc
      (ccompile (:fn node) base env)
-     (bcf/CALL base (count args))]))
+     (ccompile (:fn node) func-slot env)
+     (bcf/CALL base lit)]))
 
 ;; ----------------------- ccompile ----------------------------
 
