@@ -273,6 +273,13 @@
       bc-output)))
 
 
+
+;; ------------------------ NOT  ----------------------
+
+#_(p/pprint (anal/env-kick (anal/ast '(not true))))
+
+#_(p/pprint (c (anal/ast '(not false))))
+
 ;; --------------------------- gen-file-output ---------------------------------
 
 #_(gen-bytecode-output-data (c0 (anal/ast (+ 1 1))))
