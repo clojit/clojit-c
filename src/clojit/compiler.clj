@@ -106,12 +106,15 @@
 
 (defmethod invoke :default [node slot env]
   (let [args (:args node)
-        arg-slots (take (count args) (drop (+ 2 slot) (range)))
+        base slot
+        arg-count (count args)
+        arg-slots (take arg-count (drop (+ 2 base) (range)))
         arg-bc (mapcat ccompile args arg-slots (repeat env))
-        base (inc slot)]
+        func-slot (inc base)
+        lit (inc arg-count)]
     [arg-bc
-     (ccompile (:fn node) base env)
-     (bcf/CALL base (count args))]))
+     (ccompile (:fn node) func-slot env)
+     (bcf/CALL base lit)]))
 
 ;; ----------------------- ccompile ----------------------------
 
@@ -218,7 +221,6 @@
   gen-bytecode-output-data :- bcv/Bytecode-Output-Data [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)
-      (p/pprint bytecode-output)
       bytecode-output))
 
 (sm/defn ^:always-validate
@@ -264,13 +266,13 @@
 
 #_(p/pprint (c any-fn-test))
 
-(p/pprint (c (anal/ast '(do
+#_(p/pprint (c (anal/ast '(do
                           (def t (fn [] 99))
                           (t)))))
 
 
 
-(p/pprint (anal/env-kick (anal/ast '(fn [b] 1))))
+#_(p/pprint (anal/env-kick (anal/ast '(fn [b] 1))))
 
 
 
