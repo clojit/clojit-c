@@ -4,7 +4,8 @@
    [clojit.analyzer :as anal]
    [clojure.tools.reader.edn :as edn]
    [clojure.pprint :as p]
-   [clojure.tools.analyzer :as a]))
+   [clojure.tools.analyzer :as a])
+  (:gen-class))
 
 
 (defn -main [clj-infile]
