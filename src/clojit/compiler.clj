@@ -62,6 +62,15 @@
             div-bc (bcf/DIVVV slot one-slot arg-slot)]
         (flatten [one-bc arg-bc div-bc])))))
 
+
+;; ----------------------- INVOKE --- NOT ----------------------
+
+(defmethod invoke #'not [node slot env]
+  (let [arg (first (:args node))
+        arg-bc (ccompile arg slot env)]
+    [arg-bc
+     (bcf/NOT slot slot)]))
+
 ;; ----------------------- INVOKE --- Array ----------------------
 
 (defmethod invoke #'aset [node slot env]
