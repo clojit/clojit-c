@@ -242,8 +242,14 @@
 
 (defn c [node]
   (print-node node)
-  (let [bc (c0 node)]
-    (gen-bytecode-output-data bc)))
+  (let [bc (c0 node)
+        bc-exit-0 (do
+                    (bcf/put-in-constant-table :CINT 0)
+                    (bcf/constant-table-bytecode :CINT 0 0))
+        bc-exit (conj bc bc-exit-0 {:op :EXIT :a 0 :d nil})]
+    (let [bc-output (gen-bytecode-output-data bc-exit)]
+      (p/pprint bc-output)
+      bc-output)))
 
 
 ;; --------------------------- gen-file-output ---------------------------------
