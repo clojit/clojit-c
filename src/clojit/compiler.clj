@@ -32,6 +32,8 @@
       (bcf/constant-table-bytecode :CINT slot neutral))
     (binop op node slot env)))
 
+
+
 ;; ----------------------- INVOKE --- Math ----------------------
 
 (defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
@@ -95,21 +97,15 @@
      (bcf/NEWARRAY slot (first arg-slots))]))
 
 
+;; ----------------------- INVOKE --- Comparisant ----------------------
+
 (comment
     ISLT	dst var	var	    A = B < C
     ISGE	dst var	var     A = B ≥ C
     ISLE	dst var var	    A = B ≤ C
     ISGT	dst var var	    A = B > C
     ISEQ	dst var var	    A = B == C
-    ISNEQ	dst var var	    A = B ≠ C
-)
-
-(defmethod invoke #'aget [node slot env]
-  (let [args (:args node)
-        arg-slots (take (count args) (drop slot (range)))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (bcf/GETARRAY (+ (count args) slot) (first arg-slots) (second arg-slots))]))
+    ISNEQ	dst var var	    A = B ≠ C)
 
 (defmethod invoke #'< [node slot env]
   (bcf/ISLT))
@@ -252,7 +248,6 @@
     (println "Bytecode Output Clojure: ")
     (p/pprint bytecode-output)
     (spit "clojure-bc.json" bytecode-output-json)))
-
 
 ;; ----------------------- main compile ----------------------------
 
