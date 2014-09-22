@@ -136,10 +136,10 @@
    :a a-slot
    :d nil})
 
-(defn NEWARRAY [dst a]
+(defn NEWARRAY [dst size]
   {:op :NEWARRAY
-   :a a
-   :d nil})
+   :a dst
+   :d size})
 
 (defn GETARRAY [dst src idx]
   {:op :GETARRAY

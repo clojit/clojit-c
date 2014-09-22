@@ -62,15 +62,28 @@
             div-bc (bcf/DIVVV slot one-slot arg-slot)]
         (flatten [one-bc arg-bc div-bc])))))
 
-;; ----------------------- INVOKE --- Math ----------------------
+;; ----------------------- INVOKE --- Array ----------------------
 
 (defmethod invoke #'aset [node slot env]
   (let [args (:args node)
         arg-slots (take (count args) (drop slot (range)))
         arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    #_(bcf/dbg arg-bc)
     [arg-bc
      (apply bcf/SETARRAY arg-slots)]))
+
+(defmethod invoke #'aget [node slot env]
+  (let [args (:args node)
+        arg-slots (take (count args) (drop slot (range)))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/GETARRAY slot (first arg-slots) (second arg-slots))]))
+
+(defmethod invoke #'make-array [node slot env]
+  (let [args (:args node)
+        arg-slots (take (count args) (drop slot (range)))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/NEWARRAY slot (first arg-slots))]))
 
 
 (comment
@@ -248,7 +261,6 @@
                     (bcf/constant-table-bytecode :CINT 0 0))
         bc-exit (conj bc bc-exit-0 {:op :EXIT :a 0 :d nil})]
     (let [bc-output (gen-bytecode-output-data bc-exit)]
-      (p/pprint bc-output)
       bc-output)))
 
 
