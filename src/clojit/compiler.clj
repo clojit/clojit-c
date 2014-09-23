@@ -166,9 +166,11 @@
 (defmethod ccompile :fn [node slot env]
   (let [method  (first (:methods node))
         params  (:params method)
-        local-env (apply merge (map-indexed (fn [i parm]
-                                              {(:name parm) i})
-                                            params))
+        args-slots (drop (+ slot 2) (range))
+        local-env (apply merge (map (fn [i parm]
+                                      {(:name parm) i})
+                                    args-slots
+                                    params))
         env     (merge env local-env)
         argtc   (count params)
         argc    (:fixed-arity method)
@@ -178,8 +180,8 @@
      (vec (flatten [(if (:variadic? method)
                       (bcf/FUNCV argc)
                       (bcf/FUNCF argc))
-                    (ccompile (:body method) (+ argtc slot 1) env)
-                    (bcf/RET (+ argtc slot))])))
+                    (ccompile (:body method) (+ 2 slot argtc) env)
+                    #_(bcf/RET (+ 2 slot))])))
     [(bcf/CFUNC slot id)]))
 
 (defmethod ccompile :local [node slot env]
