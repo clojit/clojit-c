@@ -161,7 +161,7 @@
   [(ccompile (:init node) slot env)])
 
 (defn get-id [loop-id]
-  (second (.split #"_" loop-id)))
+  (second (.split #"_" (str loop-id))))
 
 (defmethod ccompile :fn [node slot env]
   (let [method  (first (:methods node))
@@ -172,7 +172,7 @@
         env     (merge env local-env)
         argtc   (count params)
         argc    (:fixed-arity method)
-        id      (Integer/parseInt (get-id (str (:loop-id method))))]
+        id      (Integer/parseInt (get-id (:loop-id method)))]
     (bcf/put-in-function-table
      id
      (vec (flatten [(if (:variadic? method)
