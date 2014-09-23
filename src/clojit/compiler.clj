@@ -151,8 +151,8 @@
   (let [bindings (:bindings node)
         binding-slots (drop slot (range))
         new-env (apply merge (map (fn [b s] {(:name b) s})
-                            bindings
-                            binding-slots))
+                                  bindings
+                                  binding-slots))
         merge-env (merge env new-env)]
     [(map ccompile bindings binding-slots (repeat merge-env))
      (ccompile (:body node) (+ slot (count bindings)) merge-env)]))
