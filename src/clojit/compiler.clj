@@ -276,7 +276,7 @@
 
 ;; ----------------------- file output --------------------------------
 
-(sm/defn ^:always-validate
+(sm/defn
   gen-bytecode-output-data :- bcv/Bytecode-Output-Data [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)
