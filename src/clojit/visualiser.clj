@@ -60,5 +60,7 @@
     :query-params qps)))
 
 (defn bc-post [complet-bc]
-  (http-post "bcinit"
-             (json/write-str complet-bc)))
+  (try
+    (http-post "bcinit" (json/write-str complet-bc))
+    (catch Exception e nil)))
+
