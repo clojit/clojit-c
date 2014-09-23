@@ -155,7 +155,9 @@
                                   binding-slots))
         merge-env (merge env new-env)]
     [(map ccompile bindings binding-slots (repeat merge-env))
-     (ccompile (:body node) (+ slot (count bindings)) merge-env)]))
+     (ccompile (:body node) (+ slot (count bindings)) merge-env)
+     (bcf/MOV slot (+ slot (count bindings)))
+     ]))
 
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
@@ -180,8 +182,8 @@
      (vec (flatten [(if (:variadic? method)
                       (bcf/FUNCV argc)
                       (bcf/FUNCF argc))
-                    (ccompile (:body method) (+ 2 slot argtc) env)
-                    #_(bcf/RET (+ 2 slot))])))
+                    (ccompile (:body method) (+ 2 slot argtc) {})
+                    (bcf/RET (+ 2 argtc slot))])))
     [(bcf/CFUNC slot id)]))
 
 ;;problem: How to correctly set RET
