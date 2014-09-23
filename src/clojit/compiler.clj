@@ -284,12 +284,8 @@
       (bcf/set-empty)
       bytecode-output))
 
-(sm/defn ^:always-validate
-  gen-file-output [bc :- bcv/Bytecode-List]
-  (let [bytecode-output (gen-bytecode-output-data bc)
-        bytecode-output-json (with-out-str (json/pprint bytecode-output))]
-    (println "Bytecode Output Clojure: ")
-    (p/pprint bytecode-output)
+(sm/defn gen-file-output [bc-output]
+  (let [bytecode-output-json (with-out-str (json/pprint bc-output))]
     (spit "clojure-bc.json" bytecode-output-json)))
 
 ;; ----------------------- main compile ----------------------------
@@ -300,9 +296,9 @@
 (defn c0 [node]
   (vec (flatten (ccompile node 0 {}))))
 
-(defn c [node]
-  (print-node node)
-  (let [bc (c0 node)
+(defn c [clj-form]
+  (let [node (anal/ast clj-form)
+        bc (c0 node)
         bc-exit-0 (do
                     (bcf/put-in-constant-table :CINT 0)
                     (bcf/constant-table-bytecode :CINT 0 0))

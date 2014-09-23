@@ -11,8 +11,7 @@
 (defn -main [clj-infile]
     (let [clj-str (slurp clj-infile)
           clj-form (edn/read-string clj-str)
-          clj-ast (anal/fast clj-form)
-          clj-bc (c/c0 clj-ast)]
+          clj-bc (c/c clj-form)]
     (c/gen-file-output clj-bc)))
 
 
