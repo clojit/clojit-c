@@ -184,6 +184,8 @@
                     #_(bcf/RET (+ 2 slot))])))
     [(bcf/CFUNC slot id)]))
 
+;;problem: How to correctly set RET
+
 (defmethod ccompile :local [node slot env]
   (let [source (get env (:name node))]
     [(bcf/MOV slot source)]))
