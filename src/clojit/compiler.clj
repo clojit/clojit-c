@@ -182,7 +182,7 @@
      (vec (flatten [(if (:variadic? method)
                       (bcf/FUNCV argc)
                       (bcf/FUNCF argc))
-                    (ccompile (:body method) (+ 2 slot argtc) {})
+                    (ccompile (:body method) (+ 2 slot argtc) local-env)
                     (bcf/RET (+ 2 argtc slot))])))
     [(bcf/CFUNC slot id)]))
 
