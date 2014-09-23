@@ -236,6 +236,42 @@
          slot
          (:val node))]))))
 
+(defmethod ccompile :loop [node slot env]
+(println "loop slot: " slot)
+  (let [bindings (:bindings node)
+
+        binding-slots (drop slot (range))
+        first-binding-slot (first binding-slots)
+
+        new-env (apply merge (map (fn [b s] {(:name b) s})
+                                  bindings
+                                  binding-slots))
+
+        loop-id (get-id (:loop-id node))
+
+        merge-env (merge env new-env
+                         {loop-id
+                          first-binding-slot})]
+
+    (println "merge env: ")
+    (p/pprint merge-env)
+    (println "(+ slot (count bindings)): ")
+    (p/pprint (+ slot (count bindings)))
+
+    [(map ccompile bindings binding-slots (repeat merge-env))
+     (bcf/LOOP {:loop-id loop-id})
+     (ccompile (:body node) (+ slot (count bindings)) merge-env)]))
+
+(defmethod ccompile :recur [node slot env]
+  (let [exprs (:exprs node)
+        exprs-slots (drop slot (range))
+        src (first exprs-slots)
+        loop-id (get-id (:loop-id node))]
+    [(map ccompile exprs exprs-slots (repeat env))
+     (bcf/BULKMOV (get env loop-id) src (count exprs))
+     (bcf/JUMP {:loop-id loop-id})]))
+
+
 ;; ----------------------- file output --------------------------------
 
 (sm/defn ^:always-validate
@@ -271,6 +307,14 @@
       (println "index: " (:index (:body (v/bc-post bc-output))))
       (p/pprint bc-output)
       bc-output)))
+
+;; ------------------------ LOOP  ----------------------
+
+#_(c (anal/ast '(loop [a 0]
+                (if true
+                  a
+                  (recur (+ a 1))))))
+
 
 
 
