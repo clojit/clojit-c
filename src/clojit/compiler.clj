@@ -241,27 +241,20 @@
          (:val node))]))))
 
 (defmethod ccompile :loop [node slot env]
-(println "loop slot: " slot)
   (let [bindings (:bindings node)
-
         binding-slots (drop slot (range))
         first-binding-slot (first binding-slots)
-
         new-env (apply merge (map (fn [b s] {(:name b) s})
                                   bindings
                                   binding-slots))
-
         loop-id (get-id (:loop-id node))
-
         merge-env (merge env new-env
                          {loop-id
                           first-binding-slot})]
-
-    (println "merge env: ")
-    (p/pprint merge-env)
-    (println "(+ slot (count bindings)): ")
-    (p/pprint (+ slot (count bindings)))
-
+    #_(println "merge env: ")
+    #_(p/pprint merge-env)
+    #_(println "(+ slot (count bindings)): ")
+    #_(p/pprint (+ slot (count bindings)))
     [(map ccompile bindings binding-slots (repeat merge-env))
      (bcf/LOOP {:loop-id loop-id})
      (ccompile (:body node) (+ slot (count bindings)) merge-env)]))
@@ -299,16 +292,15 @@
 (defn c [clj-form]
   (let [node (anal/ast clj-form)
         bc (c0 node)
-        bc-exit-0 (do
-                    (bcf/put-in-constant-table :CINT 0)
-                    (bcf/constant-table-bytecode :CINT 0 0))
-        bc-exit (conj bc bc-exit-0 {:op :EXIT :a 0 :d nil})]
-    (let [bc-output (gen-bytecode-output-data bc-exit)]
-      (println "index: " (let [bc-server-post (v/bc-post bc-output)]
-                           (when bc-server-post
-                             (:index (:body bc-server-post)))))
-      (p/pprint bc-output)
-      bc-output)))
+        bc-exit-0 (do (bcf/put-in-constant-table :CINT 0)
+                      (bcf/constant-table-bytecode :CINT 0 0))
+        bc-exit (conj bc bc-exit-0 {:op :EXIT :a 0 :d nil})
+        bc-output (gen-bytecode-output-data bc-exit)]
+    (println "Visualiser Index: " (let [bc-server-post (v/bc-post bc-output)]
+                                    (when bc-server-post
+                                      (:index (:body bc-server-post)))))
+    (p/pprint bc-output)
+    bc-output))
 
 ;; ------------------------ LOOP  ----------------------
 
