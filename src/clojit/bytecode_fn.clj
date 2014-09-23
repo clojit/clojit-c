@@ -79,6 +79,18 @@
     :a a
     :d nil}])
 
+
+(defn LOOP [loop-id]
+  [{:op :LOOP
+    :a nil
+    :d loop-id}])
+
+(defn BULKMOV [dst src len]
+  [{:op :BULKMOV
+    :a dst
+    :b src
+    :c len}])
+
 (defn MOV [a-slot d-slot]
   {:op :MOV
    :a a-slot
