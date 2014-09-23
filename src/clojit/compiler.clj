@@ -304,7 +304,9 @@
                     (bcf/constant-table-bytecode :CINT 0 0))
         bc-exit (conj bc bc-exit-0 {:op :EXIT :a 0 :d nil})]
     (let [bc-output (gen-bytecode-output-data bc-exit)]
-      (println "index: " (:index (:body (v/bc-post bc-output))))
+      (println "index: " (let [bc-server-post (v/bc-post bc-output)]
+                           (when bc-server-post
+                             (:index (:body bc-server-post)))))
       (p/pprint bc-output)
       bc-output)))
 
