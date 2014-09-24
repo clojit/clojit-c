@@ -4,6 +4,7 @@
     [clojit.bytecode-fn :as bcf]
     [clojit.bytecode-validation :as bcv]
     [clojit.visualiser :as v]
+    [clojit.env :as e]
     [clojure.pprint :as p]
     [clojure.data.json :as json]
     [clojure.tools.reader.edn :as edn]
@@ -12,7 +13,9 @@
 
 (declare ccompile)
 
-;; ----------------------- MATH ----------------------------
+
+
+;; ----------------------- INVOKE --- Math ----------------------
 
 (defn binop-reduce
   [slot env op acc arg]
@@ -32,10 +35,6 @@
       (bcf/put-in-constant-table :CINT neutral)
       (bcf/constant-table-bytecode :CINT slot neutral))
     (binop op node slot env)))
-
-
-
-;; ----------------------- INVOKE --- Math ----------------------
 
 (defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
 
@@ -135,7 +134,7 @@
      (ccompile (:fn node) func-slot env)
      (bcf/CALL base lit)]))
 
-;; ----------------------- ccompile ----------------------------
+;; ----------------------- INVOKE -------------------------
 
 (defmulti ccompile (fn [node slot env] (:op node)))
 
@@ -150,47 +149,60 @@
 (defmethod ccompile :let [node slot env]
   (let [bindings (:bindings node)
         binding-slots (drop slot (range))
-        new-env (apply merge (map (fn [b s] {(:name b) s})
+        new-env (apply merge (map (fn [b s] {(str (:name b)) {:slot s}})
                                   bindings
                                   binding-slots))
         merge-env (merge env new-env)]
     [(map ccompile bindings binding-slots (repeat merge-env))
      (ccompile (:body node) (+ slot (count bindings)) merge-env)
-     (bcf/MOV slot (+ slot (count bindings)))
-     ]))
+     (bcf/MOV slot (+ slot (count bindings)))]))
 
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
 
-(defn get-id [loop-id]
-  (second (.split #"_" (str loop-id))))
-
 (defmethod ccompile :fn [node slot env]
   (let [method  (first (:methods node))
         params  (:params method)
-        args-slots (drop (+ slot 2) (range))
+        args-slots (drop (inc slot) (range))
         local-env (apply merge (map (fn [i parm]
-                                      {(:name parm) i})
+                                      {(str (:name parm)) {:slot i}})
                                     args-slots
                                     params))
-        env     (merge env local-env)
+        freevar-env (e/convert-to-freevar env)
+        parent-freevar-env (if freevar-env
+                             (merge {:parent freevar-env} local-env)
+                             local-env)
+        has-fn-subnode (e/has-fn-subnode? (:body node))
         argtc   (count params)
         argc    (:fixed-arity method)
-        id      (Integer/parseInt (get-id (:loop-id method)))]
+        id      (Integer/parseInt (e/get-id (str (:loop-id method))))]
     (bcf/put-in-function-table
      id
      (vec (flatten [(if (:variadic? method)
                       (bcf/FUNCV argc)
                       (bcf/FUNCF argc))
-                    (ccompile (:body method) (+ 2 slot argtc) local-env)
-                    (bcf/RET (+ 2 argtc slot))])))
-    [(bcf/CFUNC slot id)]))
+                    (ccompile (:body method) (+ 1 slot argtc) (if has-fn-subnode
+                                                                parent-freevar-env
+                                                                local-env))
+                    (bcf/RET (+ 1 argtc slot))])))
+    [(bcf/FNEW slot id)]))
 
-;;problem: How to correctly set RET
+
+;; Discuss how CALL and FNEW work
+
+;; FNEW 4 *some-fn*
+;; CALL 4 *args*
+
+;; or
+
+;; FNEW 5 *some-fn*
+;; CALL 4 *args*
 
 (defmethod ccompile :local [node slot env]
-  (let [source (get env (:name node))]
-    [(bcf/MOV slot source)]))
+  (let [source (e/get-env env (str (:name node)))]
+    (if (:freevar source)
+      [(bcf/GETFREEVAR slot (:freevar source))]
+      [(bcf/MOV slot (:slot source))])))
 
 (defmethod ccompile :do [node slot env]
   (let [statements (doall (map ccompile (:statements node) (repeat slot) (repeat env)))
@@ -244,17 +256,13 @@
   (let [bindings (:bindings node)
         binding-slots (drop slot (range))
         first-binding-slot (first binding-slots)
-        new-env (apply merge (map (fn [b s] {(:name b) s})
+        new-env (apply merge (map (fn [b s] {(str (:name b)) {:slot s}})
                                   bindings
                                   binding-slots))
-        loop-id (get-id (:loop-id node))
+        loop-id (e/get-id (str (:loop-id node)))
         merge-env (merge env new-env
                          {loop-id
-                          first-binding-slot})]
-    #_(println "merge env: ")
-    #_(p/pprint merge-env)
-    #_(println "(+ slot (count bindings)): ")
-    #_(p/pprint (+ slot (count bindings)))
+                          {:slot first-binding-slot}})]
     [(map ccompile bindings binding-slots (repeat merge-env))
      (bcf/LOOP {:loop-id loop-id})
      (ccompile (:body node) (+ slot (count bindings)) merge-env)]))
@@ -263,21 +271,22 @@
   (let [exprs (:exprs node)
         exprs-slots (drop slot (range))
         src (first exprs-slots)
-        loop-id (get-id (:loop-id node))]
+        loop-id (e/get-id (str (:loop-id node)))]
     [(map ccompile exprs exprs-slots (repeat env))
-     (bcf/BULKMOV (get env loop-id) src (count exprs))
+     (bcf/BULKMOV (:slot (e/get-env env loop-id)) src (count exprs))
      (bcf/JUMP {:loop-id loop-id})]))
-
 
 ;; ----------------------- file output --------------------------------
 
-(sm/defn
-  gen-bytecode-output-data :- bcv/Bytecode-Output-Data [bc :- bcv/Bytecode-List]
+(sm/defn ^:always-validate gen-bytecode-output-data :- bcv/Bytecode-Output-Data
+  [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)
       bytecode-output))
 
-(sm/defn gen-file-output [bc-output]
+
+(sm/defn ^:always-validate gen-file-output
+  [bc-output :- bcv/Bytecode-Output-Data]
   (let [bytecode-output-json (with-out-str (json/pprint bc-output))]
     (spit "clojure-bc.json" bytecode-output-json)))
 
@@ -304,13 +313,13 @@
 
 ;; ------------------------ LOOP  ----------------------
 
-#_(c (anal/ast '(loop [a 0]
-                (if true
-                  a
-                  (recur (+ a 1))))))
+#_(c '(let [a 8 b 9]
+      ((fn [c d] b))))
 
+#_(c '(let [a 1] a))
 
-
+#_(c '(loop [a 0]
+        (recur (+ a 1))))
 
 ;; ------------------------ NOT  ----------------------
 
