@@ -1,0 +1,321 @@
+-- BYTECODE -- closure.lua:1-1 <-- 0000
+0001    MULVN    1   0   0  ; 2
+0002    RET1     1   2
+
+-- BYTECODE -- closure.lua:0-5
+0001    FNEW     0   "0"      ; closure.lua:1 // CFUNC r0, f0
+0002    GSET     0   1      ; "foo" // G["foo"] = function_obj
+0003    GGET     0   1      ; "foo"
+0004    KSHORT   1   4
+0005    CALL     0   1   2
+0006    RET0     0   1
+
+foo = function (n) return n*2 end
+foo(4)
+
+----
+
+local foo = function (n) return n*2 end
+foo(4)
+
+$ luajit -bl closure.lua
+-- BYTECODE -- closure.lua:1-1
+0001    MULVN    1   0   0  ; 2
+0002    RET1     1   2
+
+-- BYTECODE -- closure.lua:0-3
+0001    FNEW     0   0      ; closure.lua:1
+0002    MOV      1   0 // slot(1) = func_obj
+0003    KSHORT   2   4 // slot(2) = 4
+0004    CALL     1   1   2
+0005    RET0     0   1
+
+
+--------------------------------------------------------------
+
+
+(c (anal/ast '((fn [c] c) 1)))
+
+
+{:CSTR [],  
+ :CKEY [], 
+ :CINT [1 0],  
+ :CFLOAT [], 
+ :CFUNC  {0   
+                [{:op :CINT, :a 2, :d 0}   
+                 {:op :CFUNC, :a 1, :d 8206}   
+                 {:op :CALL, :a 0, :d 2}   
+                 {:op :CINT, :a 0, :d 1}   
+                 {:op :EXIT, :a 0, :d nil}],   
+                8206   
+                [{:op :FUNCF, :a 1, :d nil}   
+                 {:op :MOV, :a 4, :d 3}   
+                 {:op :RET, :a 4, :d nil}]}} 
+                 
+ --------------------------------------------------------------
+ 
+ local function myplus (a)
+  return a + a;
+end
+
+myplus(100);
+
+-- BYTECODE -- function.lua:1-3
+0001    ADDVV    1   0   0
+0002    RET1     1   2
+
+-- BYTECODE -- function.lua:0-6
+0001    FNEW     0   0      ; function.lua:1
+0002    MOV      1   0
+0003    KSHORT   2 100
+0004    CALL     1   1   2
+0005    RET0     0   1
+
+----------
+ --------------------------------------------------------------
+ 
+ 
+ (let [a 1 b (fn [] (+ a 1))]
+     (b))
+ 
+local a = 1;
+local function bar() return a+1; end
+print(bar())
+
+-- BYTECODE -- closure.lua:2-2
+0001    UGET     0   0      ; a <---
+0002    ADDVN    0   0   0  ; 1
+0003    RET1     0   2
+
+-- BYTECODE -- closure.lua:0-5
+0001    KSHORT   0   1 // slot(0) = 1 <--
+0002    FNEW     1   0      ; closure.lua:2 // slot(1) == funcobj
+0003    MOV      2   1 // slot(2) = 1
+0004    CALL     2   1   1 
+0005    UCLO     0 => 0006 // all slots >= 0 are upvalues
+0006 => RET0     0   1
+
+
+
+------
+
+1. ret
+2. func
+3. arg1
+4. arg2
+
+1. ret1
+2. ret2
+3. func
+4. arg1
+5. arg2
+
+--------------------------------------------------
+
+local function bar() 
+  local a = 1;
+  return function () return a; end; 
+end;
+bar();
+
+-- BYTECODE -- bla.lua:3-3
+0001    UGET     0   0      ; a
+0002    RET1     0   2
+
+-- BYTECODE -- bla.lua:1-4
+0001    KSHORT   0   1     <-- slot(0) = 1
+0002    FNEW     1   0      ; bla.lua:3 <-- slot(1) = func_obj
+0003    UCLO     0 => 0004 <-- backup vars > 0
+0004 => RET1     1   2
+
+-- BYTECODE -- bla.lua:0-6
+0001    FNEW     0   0      ; bla.lua:1  <--
+0002    MOV      1   0
+0003    CALL     1   1   1
+0004    RET0     0   1
+
+----------------------------------------------------
+---------------
+
+local a = 1;
+local function bar() return a+1; end
+local b = bar()
+print(b)
+
+-- BYTECODE -- test.lua:2-2
+0001    UGET     0   0      ; a
+0002    ADDVN    0   0   0  ; 1
+0003    RET1     0   2
+
+-- BYTECODE -- test.lua:0-5
+0001    KSHORT   0   1
+0002    FNEW     1   0      ; test.lua:2
+0003    MOV      2   1
+0004    CALL     2   2   1
+0005    GGET     3   1      ; "print"
+0006    MOV      4   2
+0007    CALL     3   1   2
+0008    UCLO     0 => 0009
+0009 => RET0     0   1
+
+----------------------------------------------------
+
+local function bar() 
+  local a = 1;
+  return function () a = 5; return a; end; 
+end;
+bar();
+
+-- BYTECODE -- closure.lua:3-3
+0001    USETN    uv(0)   cint(0)      ; a ; 5  a = cint(0) = 5
+0002    UGET     var(0)   uv(0)      ; a // slot(0) = upvalue(0) == a
+0003    RET1     0   2 // return slot(0)
+
+-- BYTECODE -- closure.lua:1-4
+0001    KSHORT   0   1 // slot(0) = 1
+0002    FNEW     1   0      ; closure.lua:3 //
+0003    UCLO     0 => 0004
+0004 => RET1     1   2
+
+-- BYTECODE -- closure.lua:0-6
+0001    FNEW     0   0      ; closure.lua:1
+0002    MOV      1   0
+0003    CALL     1   1   1
+0004    RET0     0   1
+
+
+(p/pprint (anal/env-kick (anal/ast ' (let [a 1 b (fn [] (+ a 1))]
+                                       (b)))))
+q
+{:op :let,
+ :form (let* [a 1 b (fn [] (+ a 1))] (b)),
+ :env {:context :expr, :locals {}, :ns user},
+ :body
+ {:body? true,
+  :op :do,
+  :env
+  {:context :expr,
+   :locals
+   {b
+    {:op :binding,
+     :env
+     {:context :expr,
+      :locals
+      {a
+       {:op :binding,
+        :env {:context :expr, :locals {}, :ns user},
+        :name a,
+        :form a,
+        :local :let,
+        :children [:init]}},
+      :ns user},
+     :name b,
+     :form b,
+     :local :let,
+     :children [:init]},
+    a
+    {:op :binding,
+     :env {:context :expr, :locals {}, :ns user},
+     :name a,
+     :form a,
+     :local :let,
+     :children [:init]}},
+   :ns user},
+  :form (do (b)),
+  :statements [],
+  :ret
+  {:children [:args :fn],
+   :meta {:line 329, :column 40, :end-line 329, :end-column 43},
+   :op :invoke,
+   :form (b),
+   :env
+   {:context :expr,
+    :locals
+    {b
+     {:op :binding,
+      :env
+      {:context :expr,
+       :locals
+       {a
+        {:op :binding,
+         :env {:context :expr, :locals {}, :ns user},
+         :name a,
+         :form a,
+         :local :let,
+         :children [:init]}},
+       :ns user},
+      :name b,
+      :form b,
+      :local :let,
+      :children [:init]},
+     a
+     {:op :binding,
+      :env {:context :expr, :locals {}, :ns user},
+      :name a,
+      :form a,
+      :local :let,
+      :children [:init]}},
+    :ns user},
+   :fn
+   {:assignable? false,
+    :op :local,
+    :env
+    {:context :expr,
+     :locals
+     {b
+      {:op :binding,
+       :env
+       {:context :expr,
+        :locals
+        {a
+         {:op :binding,
+          :env {:context :expr, :locals {}, :ns user},
+          :name a,
+          :form a,
+          :local :let,
+          :children [:init]}},
+        :ns user},
+       :name b,
+       :form b,
+       :local :let,
+       :children [:init]},
+      a
+      {:op :binding,
+       :env {:context :expr, :locals {}, :ns user},
+       :name a,
+       :form a,
+       :local :let,
+       :children [:init]}},
+     :ns user},
+    :name b,
+    :form b,
+    :local :let,
+    :children []},
+   :args []},
+  :children [:statements :ret]},
+ :bindings
+ [{:op :binding,
+   :env {:context :expr, :locals {}, :ns user},
+   :name a,
+   :form a,
+   :local :let,
+   :children [:init]}
+  {:op :binding,
+   :env
+   {:context :expr,
+    :locals
+    {a
+     {:op :binding,
+      :env {:context :expr, :locals {}, :ns user},
+      :name a,
+      :form a,
+      :local :let,
+      :children [:init]}},
+    :ns user},
+   :name b,
+   :form b,
+   :local :let,
+   :children [:init]}],
+ :children [:bindings :body]}
+
+
