@@ -172,7 +172,7 @@
         parent-freevar-env (if freevar-env
                              (merge {:parent freevar-env} local-env)
                              local-env)
-        has-fn-subnode (e/has-fn-subnode? (:body node))
+        has-fn-subnode (e/has-fn-subnode? (:methods node))
         argtc   (count params)
         argc    (:fixed-arity method)
         id      (Integer/parseInt (e/get-id (str (:loop-id method))))]
@@ -181,11 +181,14 @@
      (vec (flatten [(if (:variadic? method)
                       (bcf/FUNCV argc)
                       (bcf/FUNCF argc))
-                    (ccompile (:body method) (+ 1 slot argtc) (if has-fn-subnode
+                    (ccompile (:body method) (+ 2 slot argtc) (if has-fn-subnode
                                                                 parent-freevar-env
                                                                 local-env))
-                    (bcf/RET (+ 1 argtc slot))])))
-    [(bcf/FNEW slot id)]))
+                    (bcf/RET (+ 2 argtc slot))])))
+    (if (contains? parent-freevar-env :parent)
+                              [(bcf/FNEW slot id)
+                               (bcf/UCLO 0)]
+                              [(bcf/FNEW slot id)])))
 
 
 ;; Discuss how CALL and FNEW work
@@ -278,7 +281,8 @@
 
 ;; ----------------------- file output --------------------------------
 
-(sm/defn ^:always-validate gen-bytecode-output-data :- bcv/Bytecode-Output-Data
+ ^:always-validate
+(sm/defn gen-bytecode-output-data :- bcv/Bytecode-Output-Data
   [bc :- bcv/Bytecode-List]
     (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
       (bcf/set-empty)

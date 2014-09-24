@@ -5,6 +5,9 @@
     [schema.core :as s]
     [schema.macros :as sm]))
 
+
+(declare env)
+
 (def parent-env
   "A schema for validation of the parent env"
   {(s/optional-key :parent) env})
@@ -33,21 +36,22 @@
   (second (.split #"_" (str loop-id))))
 
 
-(sm/defn ^:always-validate convert-to-freevar :- env
-  [env :- env]
-  (let [parent-free-env (dissoc env :parent)
+
+(defn convert-to-freevar
+  [normal-env]
+  (let [parent-free-env (dissoc normal-env :parent)
         new-freevar (if-not (contains? env :parent)
                       0
                       (inc (apply max
                                   (map :freevar
-                                       (vals (:parent env))))))]
+                                       (vals (:parent normal-env))))))]
     (apply merge (map (fn [i [var-name slot]]
                         (if (= var-name :parent)
                           {:parent slot}
                           {var-name (assoc slot
                                      :freevar i)}))
                       (drop new-freevar (range))
-                      env))))
+                      normal-env))))
 
 (defn has-fn-subnode? [node]
   (cond
@@ -58,13 +62,22 @@
    (vector? node) (some true? (mapv has-fn-subnode? node))
    :default false))
 
-(sm/defn ^:always-validate get-in-parent :- get-env-schema
-  [env :- env name :- s/Str]
+
+(comment  get-env-schema
+  )
+
+
+(defn ^:always-validate get-in-parent
+  [env name ]
   (when env
     (dissoc (get env name) :slot)))
 
-(sm/defn ^:always-validate get-env :- get-env-schema
-  [env :- env name :- s/Str]
+^:always-validate
+
+(comment  get-env-schema)
+
+(defn  get-env
+  [env name]
   (if-let [local (get env name)]
     local
     (get-in-parent (:parent env) name)))

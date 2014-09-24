@@ -170,6 +170,11 @@
    :a dst
    :d idx})
 
+(defn UCLO [slot]
+  {:op :UCLO
+   :a nil
+   :d slot})
+
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
 (defn find-constant-index [op const]
