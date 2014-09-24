@@ -2,17 +2,7 @@
   (:require
     [clojure.pprint :as p]
     [clojure.tools.trace :as t]
-    [schema.core :as s]
-    ))
-
-
-(def Bytecode-Simple
-  "A schema that maches all bytecodes"
-  {(s/required-key :op) s/Keyword
-   (s/optional-key :a) s/Int
-   (s/optional-key :b) s/Int
-   (s/optional-key :c) s/Int
-   (s/optional-key :d) s/Int})
+    [schema.core :as s]))
 
 
 (def Bytecode-abcd
@@ -29,7 +19,8 @@
 (def Bytecode-ad
   "A schema for validation of the bytecode D	  A	OP"
   (merge Bytecode-abcd
-         {(s/required-key :d) (s/maybe s/Int)}))
+         {(s/required-key :d) (s/either (s/maybe s/Int)
+                                        {:loop-id s/Str})}))
 
 (def Bytecode
   "A schema that maches all bytecodes"
@@ -47,7 +38,3 @@
    :CFLOAT [(s/maybe double)]
    :CFUNC {s/Int Bytecode-List}
    })
-
-(s/validate Bytecode-List [{:op :NSGETS, :a 2, :d nil} {:op :NSGETS, :a 1, :d nil} {:op :CALL, :a 1, :d 1}]
-
-)
