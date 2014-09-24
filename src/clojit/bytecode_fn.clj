@@ -138,8 +138,8 @@
    :a a-slot-arg-count
    :d nil})
 
-(defn CFUNC [a-slot d-slot]
-  {:op :CFUNC
+(defn FNEW [a-slot d-slot]
+  {:op :FNEW
    :a a-slot
    :d d-slot})
 
@@ -164,6 +164,11 @@
    :a dst
    :b src
    :c idx})
+
+(defn GETFREEVAR [dst idx]
+  {:op :GETFREEVAR
+   :a dst
+   :d idx})
 
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
