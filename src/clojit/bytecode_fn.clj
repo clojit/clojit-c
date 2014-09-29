@@ -170,10 +170,17 @@
    :a dst
    :d idx})
 
-(defn UCLO [slot]
+(defn UCLO [slot upval]
   {:op :UCLO
-   :a nil
-   :d slot})
+   :a slot
+   :d upval})
+
+(defn TRANC [start-var end-var]
+  {:op :TRANC
+   :a start-var
+   :d end-var})
+
+
 
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
@@ -194,7 +201,7 @@
 
 (defn put-in-function-table [k f]
   (dosync
-   (alter constant-table assoc-in [:CFUNC k] f)))
+   (alter constant-table assoc-in [:CFUNC k] (vec (flatten f)))))
 
 (defn set-empty []
   (dosync (alter constant-table (fn [ct] empty-constant-table))))

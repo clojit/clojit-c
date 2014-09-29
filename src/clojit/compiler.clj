@@ -153,42 +153,33 @@
   (let [method  (first (:methods node))
         params  (:params method)
         args-slots (drop (inc slot) (range))
-        local-env (apply merge (map (fn [i parm]
-                                      {(str (:name parm)) {:slot i}})
-                                    args-slots
-                                    params))
-        freevar-env (e/convert-to-freevar env)
-        parent-freevar-env (if freevar-env
-                             (merge {:parent freevar-env} local-env)
-                             local-env)
-        has-fn-subnode (e/has-fn-subnode? (:methods node))
+        local-env (into {} (map (fn [i parm]
+                                  [(str (:name parm)) {:slot i}])
+                                args-slots
+                                params))
+        unused-freevar (e/filter-used-freevars (:body method) local-env (e/get-all-freevars env))
+        env (reduce #(dissoc %1 %2) env unused-freevar)
+        env (e/clean-parent-env-from-unaccessables local-env env)
+        full-env (e/creat-full-env env local-env)
         argtc   (count params)
         argc    (:fixed-arity method)
-        id      (Integer/parseInt (e/get-id (str (:loop-id method))))]
+        id      (e/get-id (:loop-id method))
+        body-compile-slot (+ 2 argtc)]
+
     (bcf/put-in-function-table
      id
-     (vec (flatten [(if (:variadic? method)
-                      (bcf/FUNCV argc)
-                      (bcf/FUNCF argc))
-                    (ccompile (:body method) (+ 2 slot argtc) (if has-fn-subnode
-                                                                parent-freevar-env
-                                                                local-env))
-                    (bcf/RET (+ 2 argtc slot))])))
-    (if (contains? parent-freevar-env :parent)
-                              [(bcf/FNEW slot id)
-                               (bcf/UCLO 0)]
-                              [(bcf/FNEW slot id)])))
+     [(if (:variadic? method)
+        (bcf/FUNCV argc)
+        (bcf/FUNCF argc))
+      (ccompile (:body method) body-compile-slot full-env)
+      (bcf/RET body-compile-slot)])
 
+    (if (and (contains? full-env :parent)
+             (not (empty? (disj (set (keys (:parent full-env))) :parent))))
+      [(bcf/FNEW slot id)
+       (bcf/UCLO 0 (dec slot))] ;;Second 0 is wrong, not sure jet
+      [(bcf/FNEW slot id)])))
 
-;; Discuss how CALL and FNEW work
-
-;; FNEW 4 *some-fn*
-;; CALL 4 *args*
-
-;; or
-
-;; FNEW 5 *some-fn*
-;; CALL 4 *args*
 
 (defmethod ccompile :local [node slot env]
   (let [source (e/get-env env (str (:name node)))]
@@ -292,7 +283,7 @@
  ^:always-validate
 (sm/defn gen-bytecode-output-data :- bcv/Bytecode-Output-Data
   [bc :- bcv/Bytecode-List]
-    (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC 0] bc)]
+    (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC "0"] bc)]
       (bcf/set-empty)
       bytecode-output))
 
