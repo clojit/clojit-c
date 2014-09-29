@@ -130,8 +130,8 @@
         arg-bc (mapcat ccompile args arg-slots (repeat env))
         func-slot (inc base)
         lit (inc arg-count)]
-    [arg-bc
-     (ccompile (:fn node) func-slot env)
+    [(ccompile (:fn node) func-slot env)
+     arg-bc
      (bcf/CALL base lit)]))
 
 ;; ----------------------- INVOKE -------------------------
