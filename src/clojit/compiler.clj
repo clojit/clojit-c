@@ -120,19 +120,32 @@
   bcf/ISGT)
 
 (defmethod invoke #'==  [node slot env]
-  bcf/ISEQ)
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISEQ slot (first arg-slots) (second arg-slots))]))
+
+(defmethod invoke #'aset [node slot env]
+  (let [args (:args node)
+        arg-slots (take (count args) (drop slot (range)))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (apply bcf/SETARRAY arg-slots)]))
 
 (defmethod invoke :default [node slot env]
   (let [args (:args node)
         base slot
         arg-count (count args)
-        arg-slots (take arg-count (drop (+ 2 base) (range)))
+        arg-slots (drop (+ 2 base) (range))
         arg-bc (mapcat ccompile args arg-slots (repeat env))
         func-slot (inc base)
         lit (inc arg-count)]
-    [(ccompile (:fn node) func-slot env)
+
+    [(ccompile (:fn (assoc node :fn-args args)) func-slot env)
      arg-bc
      (bcf/CALL base lit)]))
+
 
 ;; ----------------------- INVOKE -------------------------
 
@@ -149,36 +162,89 @@
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
 
+(defn gen-bc-for-arity-selection [jt base]
+  (let [first-free-slot (+ 2 (apply max (keys jt)))]
+    (mapcat (fn [[arity id]]
+           [(bcf/KSHORT first-free-slot arity)
+            (bcf/ISEQ first-free-slot base first-free-slot)
+            (bcf/JUMPT first-free-slot id)]) jt)))
+
+
+
 (defmethod ccompile :fn [node slot env]
-  (let [method  (first (:methods node))
-        params  (:params method)
-        args-slots (drop (inc slot) (range))
+  (let [id (apply str (mapv #(str "-" (e/get-id (:loop-id %))) (:methods node)))
+
+        all-fn-bc  (mapv (fn [method]
+                           (ccompile (assoc method :fn-id id) 2 env))
+                         (:methods node))
+
+        arity-jumptable (into {} (map (fn [{:keys [:arg-count :loop-id]}]
+                                        {arg-count loop-id})
+                                      all-fn-bc))]
+    (dosync
+     (alter bcf/constant-table assoc-in [:CFUNC id]
+             (vec (flatten [{:op :nop :d id}
+                                                 (gen-bc-for-arity-selection arity-jumptable slot)
+                                                 (mapcat :bc all-fn-bc)]))))
+    [(bcf/FNEW slot id)]))
+(defn resolve-jump-offset [bc-list]
+  (let [landings
+        (into {} (map-indexed (fn [i bc]
+                                (if (some #{(:op bc)} [:FUNCF :FUNCV :nop])
+                                  {(:d bc) i}
+                                  {})) bc-list))
+        jumps
+        (into {} (map-indexed (fn [i bc]
+                                (if (some #{(:op bc)} [:JUMPT :JUMPF :JUMP :FNEW])
+                                  {i (:d bc)}
+                                  {})) bc-list))
+
+        bc-list-no-landings (reduce (fn [bc-list [id index]]
+                                      (assoc-in bc-list [index :d] nil))
+                                    bc-list
+                                    landings)
+        bc-resolved-jumps (reduce (fn [bc-list [jump-index target]]
+                                    (let [landing-index (get landings target)]
+                                      (assoc-in bc-list [jump-index :d]
+                                                (if (= :nop (get-in bc-list [landing-index :op]))
+                                                  (inc (- landing-index jump-index))
+                                                  (- landing-index jump-index)))))
+                                  bc-list-no-landings jumps)
+        bc-removed-nops (filter #(not= (:op %) :nop) bc-resolved-jumps)]
+
+    bc-removed-nops
+
+    ))
+(defmethod ccompile :fn-method [node slot env]
+  (let [params  (:params node)
+        args-slots (drop slot (range))
         local-env (into {} (map (fn [i parm]
                                   [(str (:name parm)) {:slot i}])
                                 args-slots
                                 params))
-        unused-freevar (e/filter-used-freevars (:body method) local-env (e/get-all-freevars env))
+        unused-freevar (e/filter-used-freevars (:body node) local-env (e/get-all-freevars env))
         env (reduce #(dissoc %1 %2) env unused-freevar)
         env (e/clean-parent-env-from-unaccessables local-env env)
         full-env (e/creat-full-env env local-env)
         argtc   (count params)
-        argc    (:fixed-arity method)
-        id      (e/get-id (:loop-id method))
-        body-compile-slot (+ 2 argtc)]
+        argc    (:fixed-arity node)
+        body-compile-slot (+ slot argtc)
+        id (e/get-id (:loop-id node))
+        bc (vec (flatten [(if (:variadic? node)
+                      (bcf/FUNCV argc id)
+                      (bcf/FUNCF argc id))
+                    (ccompile (:body node) body-compile-slot full-env)
+                    (bcf/RET body-compile-slot)]))]
 
-    (bcf/put-in-function-table
-     id
-     [(if (:variadic? method)
-        (bcf/FUNCV argc)
-        (bcf/FUNCF argc))
-      (ccompile (:body method) body-compile-slot full-env)
-      (bcf/RET body-compile-slot)])
+    {:loop-id (e/get-id (:loop-id node))
+     :fixed-arity argc
+     :arg-count argtc
+     :variadic? (:variadic? node)
+     :fn-id (:fn-id node)
+     :bc bc
+     :bc-count (count bc)
+     }))
 
-    (if (and (contains? full-env :parent)
-             (not (empty? (disj (set (keys (:parent full-env))) :parent))))
-      [(bcf/FNEW slot id)
-       (bcf/UCLO 0 (dec slot))] ;;Second 0 is wrong, not sure jet
-      [(bcf/FNEW slot id)])))
 
 
 (defmethod ccompile :local [node slot env]
@@ -187,13 +253,16 @@
       [(bcf/GETFREEVAR slot (:freevar source))]
       [(bcf/MOV slot (:slot source))])))
 
+(defmethod ccompile :maybe-class [node slot env]
+  (let [source (e/get-env env (str (:class node))) ]
+    (if (:freevar source)
+      [(bcf/GETFREEVAR slot (:freevar source))]
+      [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:class node))))])))
+
 (defmethod ccompile :do [node slot env]
   (let [statements (doall (map ccompile (:statements node) (repeat slot) (repeat env)))
         ret (ccompile (:ret node) slot env)]
     (vec (concat statements ret))))
-
-(defmethod ccompile :maybe-class [node slot env]
-  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:class node))))])
 
 (defmethod ccompile :var [node slot env]
   [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))])
@@ -215,25 +284,6 @@
      then-bc
      (bcf/JUMP (count else-bc))
      else-bc]))
-
-(defmethod ccompile :const [node slot env]
-  (let [op
-        (cond
-         (anal/is-int? node) :CINT
-         (anal/is-float? node) :CFLOAT
-         (= :string (:type node)) :CSTR
-         (= :keyword (:type node)) :CKEY
-         (= :bool (:type node)) :CBOOL)]
-    (if (= op :CBOOL)
-      [(bcf/bool-bytecode slot (:val node))]
-      (do (when-not (= op :CBOOL)
-            (bcf/put-in-constant-table
-             op
-             (:val node)))
-        [(bcf/constant-table-bytecode
-         op
-         slot
-         (:val node))]))))
 
 (defmethod ccompile :let [node slot env]
   (let [bindings (:bindings node)
@@ -278,15 +328,48 @@
      (bcf/TRANC (inc (+ loop-begin-slot exprs-count)) (+ src exprs-count))
      (bcf/JUMP {:loop-id loop-id})]))
 
+(defmethod ccompile :const [node slot env]
+  (let [op
+        (cond
+         (anal/is-int? node) :CINT
+         (anal/is-float? node) :CFLOAT
+         (= :string (:type node)) :CSTR
+         (= :keyword (:type node)) :CKEY
+         (= :bool (:type node)) :CBOOL)]
+    (if (= op :CBOOL)
+      [(bcf/bool-bytecode slot (:val node))]
+      (do (when-not (= op :CBOOL)
+            (bcf/put-in-constant-table
+             op
+             (:val node)))
+        [(bcf/constant-table-bytecode
+         op
+         slot
+         (:val node))]))))
+
+
 ;; ----------------------- file output --------------------------------
 
  ^:always-validate
 (sm/defn gen-bytecode-output-data :- bcv/Bytecode-Output-Data
   [bc :- bcv/Bytecode-List]
-    (let [bytecode-output (assoc-in @bcf/constant-table [:CFUNC "0"] bc)]
-      (bcf/set-empty)
-      bytecode-output))
+  (let [bytecode-output (bcf/put-in-function-table "0" bc)
+        resolved-bc-list (resolve-jump-offset (vec (apply concat (vals (:CFUNC bytecode-output)))))
+        bytecode (-> bytecode-output
+                     (dissoc :CFUNC)
+                     (assoc :bytecode resolved-bc-list))
+        ]
 
+    (println "Visualiser Index: " (let [bc-server-post (v/bc-post bytecode-output)]
+                                    (when bc-server-post
+                                      (:index (:body bc-server-post)))))
+    (println "Raw BC View")
+    (p/pprint bytecode)
+    (println "Constant Table View")
+    (p/pprint bytecode-output)
+    (bcf/set-empty)
+    bytecode
+    ))
 
 (sm/defn ^:always-validate gen-file-output
   [bc-output :- bcv/Bytecode-Output-Data]
@@ -306,10 +389,8 @@
         bc (c0 node)
         bc-exit (conj bc {:op :EXIT :a 0 :d 0})
         bc-output (gen-bytecode-output-data bc-exit)]
-    (println "Visualiser Index: " (let [bc-server-post (v/bc-post bc-output)]
-                                    (when bc-server-post
-                                      (:index (:body bc-server-post)))))
-    (p/pprint bc-output)
+
+
     bc-output))
 
 ;; ------------------------ LOOP  ----------------------

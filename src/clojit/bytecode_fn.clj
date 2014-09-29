@@ -64,6 +64,11 @@
    :a a-slot
    :d d-slot})
 
+(defn JUMPT [a-slot d-slot]
+  {:op :JUMPT
+   :a a-slot
+   :d d-slot})
+
 (defn JUMP [d-slot]
   {:op :JUMP
    :a nil
@@ -121,6 +126,11 @@
    :a a-slot
    :d (find-constant-index bytecode const)})
 
+(defn KSHORT [dst lit]
+  {:op :KSHORT
+   :a dst
+   :d lit})
+
 (defn bool-bytecode [a-slot const]
   {:op :CBOOL
    :a a-slot
@@ -128,15 +138,19 @@
 
 
 
-(defn FUNCF [a-slot-arg-count]
-  {:op :FUNCF
-   :a a-slot-arg-count
-   :d nil})
+(defn FUNCF ([a-slot-arg-count]
+             (FUNCF a-slot-arg-count nil))
+            ([a-slot-arg-count id]
+             {:op :FUNCF
+              :a a-slot-arg-count
+              :d id}))
 
-(defn FUNCV [a-slot-arg-count]
-  {:op :FUNCV
-   :a a-slot-arg-count
-   :d nil})
+(defn FUNCV ([a-slot-arg-count]
+             (FUNCV a-slot-arg-count nil))
+            ([a-slot-arg-count id]
+             {:op :FUNCV
+              :a a-slot-arg-count
+              :d id}))
 
 (defn FNEW [a-slot d-slot]
   {:op :FNEW
@@ -201,7 +215,7 @@
 
 (defn put-in-function-table [k f]
   (dosync
-   (alter constant-table assoc-in [:CFUNC k] (vec (flatten f)))))
+   (alter constant-table assoc-in [:CFUNC k] f)))
 
 (defn set-empty []
   (dosync (alter constant-table (fn [ct] empty-constant-table))))
