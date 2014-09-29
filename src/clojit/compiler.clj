@@ -146,17 +146,6 @@
 (defmethod ccompile :invoke [node slot env]
   [(invoke node slot env)])
 
-(defmethod ccompile :let [node slot env]
-  (let [bindings (:bindings node)
-        binding-slots (drop slot (range))
-        new-env (apply merge (map (fn [b s] {(str (:name b)) {:slot s}})
-                                  bindings
-                                  binding-slots))
-        merge-env (merge env new-env)]
-    [(map ccompile bindings binding-slots (repeat merge-env))
-     (ccompile (:body node) (+ slot (count bindings)) merge-env)
-     (bcf/MOV slot (+ slot (count bindings)))]))
-
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
 
@@ -255,6 +244,19 @@
          slot
          (:val node))]))))
 
+(defmethod ccompile :let [node slot env]
+  (let [bindings (:bindings node)
+        binding-slots (drop slot (range))
+        new-env (apply merge (map (fn [b s] {(str (:name b)) {:slot s}})
+                                  bindings
+                                  binding-slots))
+        merge-env (merge env new-env)
+        after-binding-slot (+ slot (count bindings))]
+    [(map ccompile bindings binding-slots (repeat merge-env))
+     (ccompile (:body node) after-binding-slot merge-env)
+     (bcf/MOV slot after-binding-slot)
+     (bcf/TRANC (inc slot) after-binding-slot)]))
+
 (defmethod ccompile :loop [node slot env]
   (let [bindings (:bindings node)
         binding-slots (drop slot (range))
@@ -262,21 +264,27 @@
         new-env (apply merge (map (fn [b s] {(str (:name b)) {:slot s}})
                                   bindings
                                   binding-slots))
-        loop-id (e/get-id (str (:loop-id node)))
+        loop-id (e/get-id (:loop-id node))
         merge-env (merge env new-env
                          {loop-id
-                          {:slot first-binding-slot}})]
+                          {:slot first-binding-slot}})
+        after-bindings-slot (+ slot (count bindings))]
     [(map ccompile bindings binding-slots (repeat merge-env))
      (bcf/LOOP {:loop-id loop-id})
-     (ccompile (:body node) (+ slot (count bindings)) merge-env)]))
+     (ccompile (:body node) after-bindings-slot merge-env)
+     (bcf/MOV slot after-bindings-slot)
+     (bcf/TRANC (inc slot) after-bindings-slot)]))
 
 (defmethod ccompile :recur [node slot env]
   (let [exprs (:exprs node)
+        exprs-count (count exprs)
         exprs-slots (drop slot (range))
         src (first exprs-slots)
-        loop-id (e/get-id (str (:loop-id node)))]
+        loop-id (e/get-id (str (:loop-id node)))
+        loop-begin-slot (:slot (e/get-env env loop-id))]
     [(map ccompile exprs exprs-slots (repeat env))
-     (bcf/BULKMOV (:slot (e/get-env env loop-id)) src (count exprs))
+     (bcf/BULKMOV loop-begin-slot src exprs-count)
+     (bcf/TRANC (inc (+ loop-begin-slot exprs-count)) (+ src exprs-count))
      (bcf/JUMP {:loop-id loop-id})]))
 
 ;; ----------------------- file output --------------------------------
