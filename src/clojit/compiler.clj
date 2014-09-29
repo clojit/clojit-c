@@ -305,9 +305,7 @@
 (defn c [clj-form]
   (let [node (anal/ast clj-form)
         bc (c0 node)
-        bc-exit-0 (do (bcf/put-in-constant-table :CINT 0)
-                      (bcf/constant-table-bytecode :CINT 0 0))
-        bc-exit (conj bc bc-exit-0 {:op :EXIT :a 0 :d nil})
+        bc-exit (conj bc {:op :EXIT :a 0 :d 0})
         bc-output (gen-bytecode-output-data bc-exit)]
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post bc-output)]
                                     (when bc-server-post
