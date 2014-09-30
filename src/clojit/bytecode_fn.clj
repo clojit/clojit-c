@@ -207,7 +207,7 @@
 (defn find-fn-index [k]
   (get (:CFUNC @constant-table) k))
 
-(defn put-in-constant-table [op const]
+(defn put-const-in-constant-table [op const]
   (if (find-constant-index op const)
     @constant-table
     (dosync
@@ -219,3 +219,7 @@
 
 (defn set-empty []
   (dosync (alter constant-table (fn [ct] empty-constant-table))))
+
+(defn put-in-constant-table [k bc-list]
+  (dosync
+   (alter constant-table assoc k bc-list)))
