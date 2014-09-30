@@ -347,6 +347,22 @@
          slot
          (:val node))]))))
 
+;; ----------------------- special prints --------------------------------
+
+(defn print-bytecode [bc-list]
+  (let [bc-p-list
+        (concat
+         [(str " op            a     b         c/d")]
+         (map-indexed (fn [i bc]
+                        (clojure.string/replace
+                         (if (:b bc)
+                           (format "%03d %11s  %4s  %4s  %4s" i (:op bc) (:a bc) (:b bc) (:c bc))
+                           (format "%03d %11s  %4s        %4s" i (:op bc) (:a bc) (:d bc)))
+                         #"null"
+                         (format "%4s" "")))
+                      bc-list))]
+    (doseq [bc bc-p-list]
+      (println bc))))
 
 ;; ----------------------- file output --------------------------------
 
