@@ -54,15 +54,6 @@
             (nil? parent-env)    {:parent freevar-env}
             :default {:parent (assoc freevar-env :parent parent-env)} ))))
 
-#_(p/pprint (creat-full-env {:parent {"x" {:freevar 0, :slot 2}} "y" {:slot 3}}  {}))
-
-#_(p/pprint (convert-to-freevar {} {}))
-
-#_(p/pprint (convert-to-freevar {} {"d" {:slot 6}}))
-
-#_(p/pprint (convert-to-freevar {"c" {:slot 5} :parent {"b" {:freevar 2 :slot 2} "a" {:freevar 3 :slot 1}}}))
-
-
 (defn has-fn-subnode? [node]
   (cond
    (map? node) (if (= (:op node) :fn)
@@ -71,7 +62,6 @@
                                                       (has-fn-subnode? v))) node)))
    (vector? node) (some true? (mapv has-fn-subnode? node))
    :default false))
-
 
 (defmulti filter-used-freevars (fn [node env search-bindings] (let [op (:op node)]
                                                   (if (vector? node)
@@ -124,23 +114,11 @@
       search-bindings
       (apply hashset/intersection bindings-by-children))))
 
-
 (defn get-all-freevars [env]
   (disj (hashset/union (set (keys env))
                         (if (contains? env :parent)
                           (get-all-freevars (:parent env))
                           #{:parent})) :parent))
-
-
-#_(get-all-freevars {:parent {"x" {:freevar 0, :slot 2}}, "y" {:slot 5}})
-
-
-
-#_(filter-used-freevars (anal/ast '(do a (let [c 1 b 2] c) (fn [c] c b))) {} #{"a" "b" "c"})
-
-#_(filter-used-freevars (anal/ast '(loop [a 1] (if (= a 5) a (recur (inc a))))) {} #{"a" "b"})
-
-#_(filter-used-freevars (anal/ast '(do 1 1 1 1)) {} #{"a"})
 
 (sm/defn ^:always-validate clean-parent-env-from-unaccessables :- env [local-env :- env old-env :- env]
   (let [local-env-keys (set (keys local-env))
@@ -166,6 +144,26 @@
                 slots
                 bindings)))
 
+
+#_(p/pprint (creat-full-env {:parent {"x" {:freevar 0, :slot 2}}} {}))
+
+#_(p/pprint (creat-full-env {:parent {"x" {:freevar 0, :slot 2}} "y" {:slot 3}}  {}))
+
+#_(p/pprint (convert-to-freevar {} {}))
+
+#_(p/pprint (convert-to-freevar {} {"d" {:slot 6}}))
+
+#_(p/pprint (convert-to-freevar {"c" {:slot 5} :parent {"b" {:freevar 2 :slot 2} "a" {:freevar 3 :slot 1}}}))
+
+
+
+#_(get-all-freevars {:parent {"x" {:freevar 0, :slot 2}}, "y" {:slot 5}})
+
+#_(filter-used-freevars (anal/ast '(do a (let [c 1 b 2] c) (fn [c] c b))) {} #{"a" "b" "c"})
+
+#_(filter-used-freevars (anal/ast '(loop [a 1] (if (= a 5) a (recur (inc a))))) {} #{"a" "b"})
+
+#_(filter-used-freevars (anal/ast '(do 1 1 1 1)) {} #{"a"})
 
 
 #_(get-env {} "a")
