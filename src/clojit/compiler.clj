@@ -99,25 +99,33 @@
 
 ;; ----------------------- INVOKE --- Comparisant ----------------------
 
-(comment
-    ISLT	dst var	var	    A = B < C
-    ISGE	dst var	var     A = B ≥ C
-    ISLE	dst var var	    A = B ≤ C
-    ISGT	dst var var	    A = B > C
-    ISEQ	dst var var	    A = B == C
-    ISNEQ	dst var var	    A = B ≠ C)
-
 (defmethod invoke #'< [node slot env]
-  (bcf/ISLT))
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISLT slot (first arg-slots) (second arg-slots))]))
 
 (defmethod invoke #'>=  [node slot env]
-  (bcf/ISGE))
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISGE slot (first arg-slots) (second arg-slots))]))
 
 (defmethod invoke #'>=  [node slot env]
-  (bcf/ISLE))
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISLE slot (first arg-slots) (second arg-slots))]))
 
 (defmethod invoke #'>  [node slot env]
-  bcf/ISGT)
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISGT slot (first arg-slots) (second arg-slots))]))
 
 (defmethod invoke #'==  [node slot env]
   (let [args (:args node)
