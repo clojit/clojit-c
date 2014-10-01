@@ -97,102 +97,103 @@
     :c len}])
 
 (defn MOV [a-slot d-slot]
-  {:op :MOV
-   :a a-slot
-   :d d-slot})
+  [{:op :MOV
+    :a a-slot
+    :d d-slot}])
 
 (defn NOT [a-slot d-slot]
-  {:op :NOT
-   :a a-slot
-   :d d-slot})
+  [{:op :NOT
+    :a a-slot
+    :d d-slot}])
 
 (defn NEG [a-slot d-slot]
-  {:op :NEG
-   :a a-slot
-   :d d-slot})
+  [{:op :NEG
+    :a a-slot
+    :d d-slot}])
 
 (defn NSGETS [a-slot d-slot-str]
-   {:op :NSGETS
-     :a a-slot
-     :d d-slot-str})
+  [{:op :NSGETS
+    :a a-slot
+    :d d-slot-str}])
 
 (defn NSSETS [a-slot d-slot]
-  {:op :NSSETS
-   :a a-slot
-   :d d-slot})
+  [{:op :NSSETS
+    :a a-slot
+    :d d-slot}])
 
 (defn constant-table-bytecode [bytecode a-slot const]
-  {:op bytecode
-   :a a-slot
-   :d (find-constant-index bytecode const)})
+  [{:op bytecode
+    :a a-slot
+    :d (find-constant-index bytecode const)
+    :const const}])
 
 (defn KSHORT [dst lit]
-  {:op :KSHORT
-   :a dst
-   :d lit})
+  [{:op :KSHORT
+    :a dst
+    :d lit}])
 
 (defn bool-bytecode [a-slot const]
-  {:op :CBOOL
-   :a a-slot
-   :d (if const 1 0)})
-
-
+  [{:op :CBOOL
+    :a a-slot
+    :d (if const 1 0)
+    :const const}])
 
 (defn FUNCF ([a-slot-arg-count]
              (FUNCF a-slot-arg-count nil))
             ([a-slot-arg-count id]
-             {:op :FUNCF
-              :a a-slot-arg-count
-              :d id}))
+             [{:op :FUNCF
+               :a a-slot-arg-count
+               :d id}]))
 
 (defn FUNCV ([a-slot-arg-count]
              (FUNCV a-slot-arg-count nil))
             ([a-slot-arg-count id]
-             {:op :FUNCV
-              :a a-slot-arg-count
-              :d id}))
+             [{:op :FUNCV
+               :a a-slot-arg-count
+               :d id}]))
 
 (defn FNEW [a-slot d-slot]
-  {:op :FNEW
-   :a a-slot
-   :d d-slot})
+  [{:op :FNEW
+    :a a-slot
+    :d d-slot}])
 
 (defn CNIL [a-slot]
-  {:op :CNIL
-   :a a-slot
-   :d nil})
+  [{:op :CNIL
+    :a a-slot
+    :d nil}])
 
 (defn NEWARRAY [dst size]
-  {:op :NEWARRAY
-   :a dst
-   :d size})
+  [{:op :NEWARRAY
+    :a dst
+    :d size}])
 
 (defn GETARRAY [dst src idx]
-  {:op :GETARRAY
-   :a dst
-   :b src
-   :c idx})
+  [{:op :GETARRAY
+    :a dst
+    :b src
+    :c idx}])
 
 (defn SETARRAY [dst src idx]
-  {:op :SETARRAY
-   :a dst
-   :b src
-   :c idx})
+  [{:op :SETARRAY
+    :a dst
+    :b src
+    :c idx}])
 
-(defn GETFREEVAR [dst idx]
-  {:op :GETFREEVAR
-   :a dst
-   :d idx})
+(defn GETFREEVAR [dst idx name]
+  [{:op :GETFREEVAR
+    :a dst
+    :d idx
+    :name name}])
 
 (defn UCLO [slot upval]
-  {:op :UCLO
-   :a slot
-   :d upval})
+  [{:op :UCLO
+    :a slot
+    :d upval}])
 
 (defn TRANC [start-var end-var]
-  {:op :TRANC
-   :a start-var
-   :d end-var})
+  [{:op :TRANC
+    :a start-var
+    :d end-var}])
 
 
 

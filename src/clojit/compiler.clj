@@ -57,9 +57,7 @@
     (if (> 1 (count args))
       (binop bcf/DIVVV node slot env)
       (let [one-slot slot
-            one-bc (do
-                     (bcf/put-const-in-constant-table :CINT 1)
-                     (bcf/constant-table-bytecode :CINT one-slot 1))
+            one-bc (bcf/KSHORT one-slot 1)
             arg (first args)
             arg-slot (inc slot)
             arg-bc (ccompile arg arg-slot env)
@@ -143,11 +141,9 @@
         arg-bc (mapcat ccompile args arg-slots (repeat env))
         func-slot (inc base)
         lit (inc arg-count)]
-
     [(ccompile (:fn (assoc node :fn-args args)) func-slot env)
      arg-bc
      (bcf/CALL base lit)]))
-
 
 ;; ----------------------- INVOKE -------------------------
 
@@ -166,30 +162,60 @@
 
 (defn gen-bc-for-arity-selection [jt base fn-id]
   (let [first-free-slot (+ 2 (apply max (keys jt)))]
-    (mapcat (fn [[arity id]]
-              [{:op :nop :a (bcf/KSHORT first-free-slot arity) :d fn-id}
-               (bcf/ISEQ first-free-slot base first-free-slot)
-               (bcf/JUMPT first-free-slot id)]) jt)))
+    (apply concat (map-indexed (fn [i [arity id]]
+                                 [(if (= i 0)
+                                    {:op :nop :a (bcf/KSHORT first-free-slot arity) :d fn-id}
+                                    (bcf/KSHORT first-free-slot arity))
+                                  (bcf/ISEQ first-free-slot base first-free-slot)
+                                  (bcf/JUMPT first-free-slot id)])
+                               jt))))
+
+(defn creat-arity-jumptable [all-fn-bc]
+  (into {} (map (fn [{:keys [:arg-count :loop-id]}]
+                  {arg-count loop-id})
+                all-fn-bc)))
+
+(defn creat-fn-id [node]
+  (apply str (interpose "-" (mapv #(str (e/get-id (:loop-id %)))
+                                       (:methods node)))))
+
+(defn filter-fn-id [env]
+  (into {}
+        (map (fn [[k v]]
+               (if (re-find #"\A-?\d+" k)
+                 {}
+                 {k v}))
+             env)))
 
 (defmethod ccompile :fn [node slot env]
-  (let [fn-id (apply str (mapv #(str "-" (e/get-id (:loop-id %))) (:methods node)))
+  (let [fn-id (creat-fn-id node)
+        all-fn-bc  (mapv #(ccompile % 2 env) (:methods node))
+        arity-count (count all-fn-bc)
+        arity-jumptable (creat-arity-jumptable all-fn-bc)
+        arity-selection-code (gen-bc-for-arity-selection arity-jumptable slot fn-id)
+        filter-env (filter-fn-id (dissoc env :parent))
 
-        all-fn-bc  (mapv (fn [method]
-                           (ccompile method 2 env))
-                         (:methods node))
-
-        arity-jumptable (into {} (map (fn [{:keys [:arg-count :loop-id]}]
-                                        {arg-count loop-id})
-                                      all-fn-bc))]
+        generate-uclo (some true? (mapv #(let [full-env (:full-env %)]
+                                           (and (contains? full-env :parent)
+                                                (not (empty?
+                                                      (disj (set (keys (:parent full-env)))
+                                                            :parent)))))
+                                        all-fn-bc))]
     (bcf/put-in-function-table fn-id
-                               (vec (flatten [(gen-bc-for-arity-selection arity-jumptable slot fn-id)
+                               (vec (flatten [(if (> arity-count 1)
+                                                arity-selection-code
+                                                [])
                                               (mapcat :bc all-fn-bc)])))
-    [(bcf/FNEW slot fn-id)]))
+    (if generate-uclo
+      [(bcf/FNEW slot fn-id)
+       (bcf/UCLO 0 (dec slot))]
+      [(bcf/FNEW slot fn-id)])))
 
-#_(if (and (contains? full-env :parent)
+
+#_(if (and (contains? full-env :parent)  ;; has stuff in it
            (not (empty? (disj (set (keys (:parent full-env))) :parent))))
-    [(bcf/FNEW slot id)
-     (bcf/UCLO 0 (dec slot))] ;;Second 0 is wrong, not sure jet
+    [(bcf/FNEW slot fn-id)
+     (bcf/UCLO 0 (dec slot))]
     [(bcf/FNEW slot id)])
 
 (defmethod ccompile :fn-method [node slot env]
@@ -199,36 +225,44 @@
         argc (:fixed-arity node)
         body-compile-slot (+ slot argtc)
         id (e/get-id (:loop-id node))
-        local-env (assoc (e/creat-local-env params args-slots)
+        local-env (assoc (e/creat-env params args-slots)
                     id
                     {:slot body-compile-slot})
         unused-freevar (e/filter-used-freevars (:body node) local-env (e/get-all-freevars env))
-        env (reduce #(dissoc %1 %2) env unused-freevar)
-        env (e/clean-parent-env-from-unaccessables local-env env)
-        full-env (e/creat-full-env env local-env)
+        used-freevar-env (reduce #(dissoc %1 %2) env unused-freevar)
+        accessable-env (e/clean-parent-env-from-unaccessables local-env used-freevar-env)
+        full-env (e/creat-full-env accessable-env local-env)
         bc (vec (flatten [(if (:variadic? node)
-                      (bcf/FUNCV argc id)
-                      (bcf/FUNCF argc id))
-                    (ccompile (:body node) body-compile-slot full-env)
-                    (bcf/RET body-compile-slot)]))]
+                            (bcf/FUNCV argc id)
+                            (bcf/FUNCF argc id))
+                          (ccompile (:body node) body-compile-slot full-env)
+                          (bcf/RET body-compile-slot)]))]
+    (comment
+      (dbg env)
+      (dbg unused-freevar)
+      (dbg used-freevar-env)
+      (dbg accessable-env)
+      (dbg local-env)
+      (dbg full-env))
+
     {:loop-id id
+     :full-env full-env
      :fixed-arity argc
      :arg-count argtc
      :variadic? (:variadic? node)
      :fn-id (:fn-id node)
      :bc bc}))
 
-
 (defmethod ccompile :local [node slot env]
   (let [source (e/get-env env (str (:name node)))]
     (if (:freevar source)
-      [(bcf/GETFREEVAR slot (:freevar source))]
+      [(bcf/GETFREEVAR slot (:freevar source) (str (:name node)))]
       [(bcf/MOV slot (:slot source))])))
 
 (defmethod ccompile :maybe-class [node slot env]
   (let [source (e/get-env env (str (:class node))) ]
     (if (:freevar source)
-      [(bcf/GETFREEVAR slot (:freevar source))]
+      [(bcf/GETFREEVAR slot (:freevar source) (str (:class node)))]
       [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:class node))))])))
 
 (defmethod ccompile :do [node slot env]
@@ -237,6 +271,7 @@
     (vec (concat statements ret))))
 
 (defmethod ccompile :var [node slot env]
+  (println "VAR")
   [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))])
 
 ;;-------------------------------------
@@ -252,17 +287,15 @@
         then-bc  (vec (flatten (ccompile (:then node) slot env)))
         else-bc  (vec (flatten (ccompile (:else node) slot env)))]
     [test-bc
-      (bcf/JUMPF slot (inc (count then-bc)))
-      then-bc
-      (bcf/JUMP (count else-bc))
-      else-bc]))
+     (bcf/JUMPF slot  (+ 2 (count then-bc)))
+     then-bc
+     (bcf/JUMP (inc (count else-bc)))
+     else-bc]))
 
 (defmethod ccompile :let [node slot env]
   (let [bindings (:bindings node)
         binding-slots (drop slot (range))
-        new-env (into {} (map (fn [b s] {(str (:name b)) {:slot s}})
-                                  bindings
-                                  binding-slots))
+        new-env (e/creat-env bindings binding-slots)
         merge-env (merge env new-env)
         after-binding-slot (+ slot (count bindings))]
     [(map ccompile bindings binding-slots (repeat merge-env))
@@ -274,9 +307,7 @@
   (let [bindings (:bindings node)
         binding-slots (drop slot (range))
         first-binding-slot (first binding-slots)
-        new-env  (into {} (map (fn [b s] {(str (:name b)) {:slot s}})
-                               bindings
-                               binding-slots))
+        new-env (e/creat-env bindings binding-slots)
         loop-id  (e/get-id (:loop-id node))
         merge-env  (merge env new-env
                           {loop-id
@@ -300,49 +331,148 @@
      (bcf/TRANC (+ loop-begin-slot exprs-count) (+ src exprs-count))
      (bcf/JUMP loop-id)]))
 
+(defn exp [x n]
+  (reduce * (repeat n x)))
+
+(defn creat-int-constant-bytecode [val slot]
+  (let [max-val (exp 2 16)
+        min-val 0]
+    (if (and (< val max-val)
+             (> val min-val))
+      (bcf/KSHORT slot val)
+      (do
+        (bcf/put-const-in-constant-table :CINT val)
+        (bcf/constant-table-bytecode :CINT slot val)))))
+
 (defmethod ccompile :const [node slot env]
-  (let [op
+  (let [val (:val node)
+        op
         (cond
          (anal/is-int? node) :CINT
          (anal/is-float? node) :CFLOAT
          (= :string (:type node)) :CSTR
          (= :keyword (:type node)) :CKEY
          (= :bool (:type node)) :CBOOL)]
-    (if (= op :CBOOL)
-      [(bcf/bool-bytecode slot (:val node))]
-      (do (when-not (= op :CBOOL)
-            (bcf/put-const-in-constant-table
-             op
-             (:val node)))
-        [(bcf/constant-table-bytecode
-         op
-         slot
-         (:val node))]))))
+
+    (cond
+     (= op :CBOOL) (bcf/bool-bytecode slot)
+     (= op :CINT)  (creat-int-constant-bytecode val slot)
+     :default (do
+                (bcf/put-const-in-constant-table op val)
+                (bcf/constant-table-bytecode op slot val)))))
 
 ;; ----------------------- special prints --------------------------------
 
-(defn print-bytecode [bc-list]
-  (let [bc-p-list
-        (concat
-         [(str " op            a     b         c/d")]
-         (map-indexed (fn [i bc]
-                        (clojure.string/replace
-                         (if (:b bc)
-                           (format "%03d %11s  %4s  %4s  %4s" i (:op bc) (:a bc) (:b bc) (:c bc))
-                           (format "%03d %11s  %4s        %4s" i (:op bc) (:a bc) (:d bc)))
-                         #"null"
-                         (format "%4s" "")))
-                      bc-list))]
-    (doseq [bc bc-p-list]
-      (println bc))))
+(declare by-line-print unresolved-bytecode resolved-bytecode-split format-bc resolved-bytecode-format bytecode-format)
+
+(defn by-line-print [lst]
+  (doseq [s lst]
+      (println s)))
+
+(defn unresolved-bytecode [constant-table]
+  (flatten (map (fn [[k v]]
+                  [(str "fn: " k)
+                   (bytecode-format v)])
+                (:CFUNC constant-table))))
+
+(defn resolved-bytecode-split [constant-table]
+  (:bcs (reduce (fn [bclist [k c]]
+
+                  {:bc (drop c (:bc bclist))
+                   :bcs (flatten [(str "fn: " k)
+                                  (take c (:bc bclist))
+                                  (:bcs bclist)])})
+                {:bc (:bytecode constant-table)
+                 :bcs []}
+                (:fn-bc-count constant-table))))
+
+(defmulti format-bc (fn [bc] (:op bc)))
+
+(defmethod format-bc :FNEW [bc]
+  (clojure.string/replace
+   (format "%03d %11s  %4s         %6s ==> %03d %7s" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc) (:fnk bc))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :GETFREEVAR [bc]
+  (clojure.string/replace
+   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:name bc))
+   #"null"
+   (format "%4s" "")))
+
+
+(defmethod format-bc :JUMP [bc]
+  (clojure.string/replace
+   (if (:jt-nr bc)
+     (format "%03d %11s  %4s         %6s ==> %03d" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc))
+     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc)))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :JUMPF [bc]
+  (clojure.string/replace
+   (if (:jt-nr bc)
+     (format "%03d %11s  %4s         %6s ==> %03d" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc))
+     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc)))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :JUMPT [bc]
+  (clojure.string/replace
+   (if (:jt-nr bc)
+     (format "%03d %11s  %4s         %6s ==> %03d" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc))
+     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc)))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :CINT [bc]
+  (clojure.string/replace
+   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :CFLOAT [bc]
+  (clojure.string/replace
+   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :CKEY [bc]
+  (clojure.string/replace
+   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :CSTR [bc]
+  (clojure.string/replace
+   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
+   #"null"
+   (format "%4s" "")))
+
+(defmethod format-bc :default [bc]
+  (clojure.string/replace
+   (if (:b bc)
+     (format "%03d %11s  %4s   %4s  %6s"  (:i bc) (:op bc) (:a bc) (:b bc) (:c bc))
+     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc) (:fnk bc)))
+   #"null"
+   (format "%4s" "")))
+
+(defn resolved-bytecode-format [constant-table]
+  (flatten (map  #(if (map? %)
+                    (format-bc %)
+                    [%
+                     (str "-            op     a      b     c/d")])
+                 (resolved-bytecode-split constant-table))))
+
+(defn bytecode-format [bc-list]
+  (concat
+   [(str "-            op     a      b     c/d")]
+   (map-indexed (fn [i bc]
+                  (format-bc bc))
+                bc-list)))
 
 (defn print-node [node]
   (p/pprint (dissoc (anal/env-kick node) :meta)))
-
-
-^:always-validate
-
-
 
 ;; ----------------------- main compile ----------------------------
 
@@ -353,22 +483,34 @@
   (let [node (anal/ast clj-form)
         bc (c0 node)
         bc-exit (conj bc {:op :EXIT :a 0 :d nil})
-        constant-table (bcf/put-in-function-table "0" bc)
+        constant-table (bcf/put-in-function-table "0" bc-exit)
         resolved-bc-list (bcp/resolve-jump-offset (:CFUNC constant-table))
-        constant-table (bcf/put-in-constant-table :bytecode resolved-bc-list)]
+        constant-table (bcf/put-in-constant-table :bytecode resolved-bc-list)
+        constant-table (bcf/put-in-constant-table
+                        :fn-bc-count
+                        (into {} (map (fn [[k v]]
+                                        {k (count v)})
+                                      (:CFUNC constant-table))))]
+
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post constant-table)]
                                     (when bc-server-post
                                       (:index (:body bc-server-post)))))
-    (println "Raw BC View")
-    (print-bytecode (:bytecode constant-table))
-    (println "Constant Table View")
-    (p/pprint (dissoc constant-table :bytecode))
+
+    #_(println "Bytecode without jump resolution")
+    #_(by-line-print (unresolved-bytecode constant-table))
+    (println "Bytecode with jump resolution")
+    (by-line-print (resolved-bytecode-format constant-table))
+
+    #_(println "Constant Table View")
+    #_(p/pprint (dissoc constant-table :bytecode :fn-bc-count ))
+
     (bcf/set-empty)
     constant-table))
 
+
 ;; ----------------------- file output --------------------------------
 
-(sm/defn ^:always-validate gen-file-output
+(sm/defn gen-file-output
   [bc-output :- bcv/Bytecode-Output-Data]
   (let [bytecode-output-json (with-out-str (json/pprint bc-output))]
     (spit "clojure-bc.json" bytecode-output-json)))
@@ -382,7 +524,7 @@
       (let [d 1 e 2 f 3]
         (recur a b c))))
 
-(c '(loop [a 1 b 2 c 3] (recur a b c)))
+#_(c '(loop [a 1 b 2 c 3] (recur a b c)))
 
 ;; ------------------------ UCLO  ----------------------
 
@@ -392,11 +534,14 @@
                 (fn [] a)))))
 
 #_(c '((fn foo [x]
-       (let [a 1 b 2]
-         (fn bar [y]
-           (fn baz []
-             b x))
-         7)) 5))
+       (fn bar [y]
+         (fn baz []
+            x)))
+       5))
+
+#_(c '(loop [a 1 b 2]
+      (recur a b)))
+
 
 ;; ------------------------ LOOP  ----------------------
 
@@ -407,6 +552,17 @@
 
 #_(c '(loop [a 0]
         (recur (+ a 1))))
+
+#_(c '(fn [e f] (loop [h 1 j 2] (if (== (+ h j) (+ e f))
+                                 (- j h)
+                                 (recur e f)))))
+
+
+#_(c '(do (fn [a b] (let [b 1 c (+ 1 b)]
+                    (+ b a b)))
+        (fn ([] 99999999999999) ([e f g] (loop [h 1 j 2] (if (== (+ h j) (+ e f g))
+                                       (- j h)
+                                       (recur e f)))))))
 
 ;; ------------------------ NOT  ----------------------
 

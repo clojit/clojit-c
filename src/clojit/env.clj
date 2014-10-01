@@ -138,7 +138,7 @@
      (when (:parent env)
        (get-env (:parent env) name true)))))
 
-(defn creat-local-env [bindings slots]
+(defn creat-env [bindings slots]
   (into {} (map (fn [i binding]
                   [(str (:name binding)) {:slot i}])
                 slots
