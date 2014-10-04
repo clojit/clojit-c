@@ -127,8 +127,8 @@
     :d (find-constant-index bytecode const)
     :const const}])
 
-(defn KSHORT [dst lit]
-  [{:op :KSHORT
+(defn CSHORT [dst lit]
+  [{:op :CSHORT
     :a dst
     :d lit}])
 
