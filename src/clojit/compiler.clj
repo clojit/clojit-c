@@ -363,7 +363,7 @@
          (= :bool (:type node)) :CBOOL)]
 
     (cond
-     (= op :CBOOL) (bcf/bool-bytecode slot)
+     (= op :CBOOL) (bcf/bool-bytecode slot val)
      (= op :CINT)  (creat-int-constant-bytecode val slot)
      :default (do
                 (bcf/put-const-in-constant-table op val)
