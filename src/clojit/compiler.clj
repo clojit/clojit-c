@@ -6,6 +6,7 @@
     [clojit.visualiser :as v]
     [clojit.env :as e]
     [clojit.bytecode-patch :as bcp]
+    [clojit.bytecode-print :as bcprint]
     [clojure.pprint :as p]
     [clojure.data.json :as json]
     [clojure.tools.reader.edn :as edn]
@@ -63,7 +64,6 @@
             arg-bc (ccompile arg arg-slot env)
             div-bc (bcf/DIVVV slot one-slot arg-slot)]
         (flatten [one-bc arg-bc div-bc])))))
-
 
 ;; ----------------------- INVOKE --- NOT ----------------------
 
@@ -369,119 +369,6 @@
                 (bcf/put-const-in-constant-table op val)
                 (bcf/constant-table-bytecode op slot val)))))
 
-;; ----------------------- special prints --------------------------------
-
-(declare by-line-print unresolved-bytecode resolved-bytecode-split format-bc resolved-bytecode-format bytecode-format)
-
-(defn by-line-print [lst]
-  (doseq [s lst]
-      (println s)))
-
-(defn unresolved-bytecode [constant-table]
-  (flatten (map (fn [[k v]]
-                  [(str "fn: " k)
-                   (bytecode-format v)])
-                (:CFUNC constant-table))))
-
-(defn resolved-bytecode-split [constant-table]
-  (:bcs (reduce (fn [bclist [k c]]
-
-                  {:bc (drop c (:bc bclist))
-                   :bcs (flatten [(str "fn: " k)
-                                  (take c (:bc bclist))
-                                  (:bcs bclist)])})
-                {:bc (:bytecode constant-table)
-                 :bcs []}
-                (:fn-bc-count constant-table))))
-
-(defmulti format-bc (fn [bc] (:op bc)))
-
-(defmethod format-bc :FNEW [bc]
-  (clojure.string/replace
-   (format "%03d %11s  %4s         %6s ==> %03d %7s" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc) (:fnk bc))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :GETFREEVAR [bc]
-  (clojure.string/replace
-   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:name bc))
-   #"null"
-   (format "%4s" "")))
-
-
-(defmethod format-bc :JUMP [bc]
-  (clojure.string/replace
-   (if (:jt-nr bc)
-     (format "%03d %11s  %4s         %6s ==> %03d" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc))
-     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc)))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :JUMPF [bc]
-  (clojure.string/replace
-   (if (:jt-nr bc)
-     (format "%03d %11s  %4s         %6s ==> %03d" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc))
-     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc)))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :JUMPT [bc]
-  (clojure.string/replace
-   (if (:jt-nr bc)
-     (format "%03d %11s  %4s         %6s ==> %03d" (:i bc) (:op bc) (:a bc) (:d bc) (:jt-nr bc))
-     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc)))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :CINT [bc]
-  (clojure.string/replace
-   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :CFLOAT [bc]
-  (clojure.string/replace
-   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :CKEY [bc]
-  (clojure.string/replace
-   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :CSTR [bc]
-  (clojure.string/replace
-   (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:const bc))
-   #"null"
-   (format "%4s" "")))
-
-(defmethod format-bc :default [bc]
-  (clojure.string/replace
-   (if (:b bc)
-     (format "%03d %11s  %4s   %4s  %6s"  (:i bc) (:op bc) (:a bc) (:b bc) (:c bc))
-     (format "%03d %11s  %4s         %6s" (:i bc) (:op bc) (:a bc) (:d bc) (:fnk bc)))
-   #"null"
-   (format "%4s" "")))
-
-(defn resolved-bytecode-format [constant-table]
-  (flatten (map  #(if (map? %)
-                    (format-bc %)
-                    [%
-                     (str "-            op     a      b     c/d")])
-                 (resolved-bytecode-split constant-table))))
-
-(defn bytecode-format [bc-list]
-  (concat
-   [(str "-            op     a      b     c/d")]
-   (map-indexed (fn [i bc]
-                  (format-bc bc))
-                bc-list)))
-
-(defn print-node [node]
-  (p/pprint (dissoc (anal/env-kick node) :meta)))
-
 ;; ----------------------- main compile ----------------------------
 
 (defn c0 [node]
@@ -507,10 +394,10 @@
     #_(println "Bytecode without jump resolution")
     #_(by-line-print (unresolved-bytecode constant-table))
     (println "Bytecode with jump resolution")
-    (by-line-print (resolved-bytecode-format constant-table))
+    (bcprint/by-line-print (bcprint/resolved-bytecode-format constant-table))
 
     #_(println "Constant Table View")
-    #_(p/pprint (dissoc constant-table :bytecode :fn-bc-count ))
+    (p/pprint (dissoc constant-table :fn-bc-count ))
 
     (bcf/set-empty)
     constant-table))
