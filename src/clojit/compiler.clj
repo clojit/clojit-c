@@ -403,6 +403,14 @@
     constant-table))
 
 
+
+(defn cleanup [bc]
+  (let [bc-c1 (dissoc bc :CFUNC :fn-bc-count)
+        bc-c2 (update-in bc-c1 [:bytecode] (fn [bc-list] (map
+                                                          #(dissoc % :i :const :jt-nr :fnk)
+                                                          bc-list)))]
+    (dissoc bc-c2 :fn-bc-count :CFUNC)))
+
 ;; ----------------------- file output --------------------------------
 
 (sm/defn gen-file-output
