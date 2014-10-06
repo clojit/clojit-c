@@ -345,8 +345,7 @@
 (defn creat-int-constant-bytecode [val slot]
   (let [max-val (exp 2 16)
         min-val 0]
-    (if (and (< val max-val)
-             (> val min-val))
+    (if (and (< val max-val) (>= val min-val))
       (bcf/CSHORT slot val)
       (do
         (bcf/put-const-in-constant-table :CINT val)
