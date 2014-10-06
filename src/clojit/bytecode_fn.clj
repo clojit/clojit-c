@@ -190,8 +190,8 @@
     :a slot
     :d upval}])
 
-(defn TRANC [start-var end-var]
-  [{:op :TRANC
+(defn DROP [start-var end-var]
+  [{:op :DROP
     :a start-var
     :d end-var}])
 

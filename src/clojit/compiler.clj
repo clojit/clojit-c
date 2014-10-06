@@ -309,7 +309,7 @@
     [(map ccompile bindings binding-slots (repeat merge-env))
      (ccompile (:body node) after-binding-slot merge-env)
      (bcf/MOV slot after-binding-slot)
-     (bcf/TRANC (inc slot) after-binding-slot)]))
+     (bcf/DROP (inc slot) after-binding-slot)]))
 
 (defmethod ccompile :loop [node slot env]
   (let [bindings (:bindings node)
@@ -325,7 +325,7 @@
      (bcf/LOOP loop-id)
      (ccompile (:body node) after-bindings-slot merge-env)
      (bcf/MOV slot after-bindings-slot)
-     (bcf/TRANC (inc slot) after-bindings-slot)]))
+     (bcf/DROP (inc slot) after-bindings-slot)]))
 
 (defmethod ccompile :recur [node slot env]
   (let [exprs (:exprs node)
@@ -336,7 +336,7 @@
         loop-begin-slot (:slot (e/get-env env loop-id))]
     [(map ccompile exprs exprs-slots (repeat env))
      (bcf/BULKMOV loop-begin-slot src exprs-count)
-     (bcf/TRANC (+ loop-begin-slot exprs-count) (+ src exprs-count))
+     (bcf/DROP (+ loop-begin-slot exprs-count) (+ src exprs-count))
      (bcf/JUMP loop-id)]))
 
 (defn exp [x n]
