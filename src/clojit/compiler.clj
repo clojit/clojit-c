@@ -410,6 +410,24 @@
   (let [bytecode-output-json (with-out-str (json/pprint bc-output))]
     (spit "clojure-bc.json" bytecode-output-json)))
 
+;; ------------------------ protocols ----------------------
+
+
+#_(defprotocol pkill
+  (shot-self [self]))
+
+#_(def past (anal/ast '(defprotocol pkill
+                       (shot-self [self]))))
+
+#_(-> past :op)
+
+;; ------------------------ types ----------------------
+
+#_(def iast (anal/ast '(-deftype Ind [i])))
+
+
+#_(-> iast  anal/env-kick p/pprint)
+
 ;; ------------------------ recur  ----------------------
 
 
@@ -434,7 +452,7 @@
             x)))
        5))
 
-#_(c '(loop [a 1 b 2]
+(c '(loop [a 1 b 2]
       (recur a b)))
 
 
@@ -501,7 +519,6 @@
 
 #_(def def-test (anal/ast (def x 1)))
 
-#_(print-node def-test)
 
 #_(c def-test)
 
@@ -515,21 +532,12 @@
 
 #_(def let-test (anal/ast (let [a 1] (if true (+ a a) (+ 10 a)))))
 
-#_(print-node let-test)
-#_(print-node (:bindings let-test))
-#_(print-node (:body let-test))
-
-#_(print-node (:ret (:body let-test)))
-
-#_(print-node   (:body let-test))
 
 #_(p/pprint (c let-test))
 
 ;; --------------------------- Do -------------------------------------
 
 #_(def do-test (anal/ast (do 1 2)))
-
-#_(print-node do-test)
 
 ;; --------------------------- Function call -------------------------------------
 
@@ -562,12 +570,8 @@
 
 #_(p/pprint bc-bool-test)
 
-#_(print-node bool-test)
-
 #_(p/pprint (anal/env-kick bc-bool-test))
 
-
-#_(print-node (anal/ast (+ 1 1)))
 
 #_(p/pprint (c (anal/ast (+ 1 1))))
 #_(p/pprint @bcf/constant-table)
@@ -581,7 +585,5 @@
 #_(:name def-test)
 
 #_(:op def-test)
-
-#_(print-node (dissoc def-test :meta ))
 
 
