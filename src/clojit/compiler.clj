@@ -58,7 +58,7 @@
     (if (> 1 (count args))
       (binop bcf/DIVVV node slot env)
       (let [one-slot slot
-            one-bc (bcf/KSHORT one-slot 1)
+            one-bc (bcf/CSHORT one-slot 1)
             arg (first args)
             arg-slot (inc slot)
             arg-bc (ccompile arg arg-slot env)
@@ -172,8 +172,8 @@
   (let [first-free-slot (+ 2 (apply max (keys jt)))]
     (apply concat (map-indexed (fn [i [arity id]]
                                  [(if (= i 0)
-                                    {:op :nop :a (bcf/KSHORT first-free-slot arity) :d fn-id}
-                                    (bcf/KSHORT first-free-slot arity))
+                                    {:op :nop :a (bcf/CSHORT first-free-slot arity) :d fn-id}
+                                    (bcf/CSHORT first-free-slot arity))
                                   (bcf/ISEQ first-free-slot base first-free-slot)
                                   (bcf/JUMPT first-free-slot id)])
                                jt))))
@@ -347,7 +347,7 @@
         min-val 0]
     (if (and (< val max-val)
              (> val min-val))
-      (bcf/KSHORT slot val)
+      (bcf/CSHORT slot val)
       (do
         (bcf/put-const-in-constant-table :CINT val)
         (bcf/constant-table-bytecode :CINT slot val)))))
