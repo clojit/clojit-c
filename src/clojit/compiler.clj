@@ -359,10 +359,11 @@
          (anal/is-float? node) :CFLOAT
          (= :string (:type node)) :CSTR
          (= :keyword (:type node)) :CKEY
-         (= :bool (:type node)) :CBOOL)]
-
+         (= :bool (:type node)) :CBOOL
+         (= :nil (:type node)) :CNIL)]
     (cond
      (= op :CBOOL) (bcf/bool-bytecode slot val)
+     (= op :CNIL)  (bcf/CNIL slot)
      (= op :CINT)  (creat-int-constant-bytecode val slot)
      :default (do
                 (bcf/put-const-in-constant-table op val)
