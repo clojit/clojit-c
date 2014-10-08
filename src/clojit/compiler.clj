@@ -55,7 +55,7 @@
 
 (defmethod invoke #'/ [node slot env]
   (let [args (:args node)]
-    (if (> 1 (count args))
+    (if (> (count args) 1)
       (binop bcf/DIVVV node slot env)
       (let [one-slot slot
             one-bc (bcf/CSHORT one-slot 1)
