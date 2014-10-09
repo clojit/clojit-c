@@ -28,9 +28,13 @@
 (defn resolve-jumps [bc-list landings jumps]
   (reduce (fn [bc-list [jump-index target]]
             (if-let [landing-index (get landings target)]
-              (-> bc-list
-                  (assoc-in [jump-index :jt-nr] (+ jump-index (- landing-index jump-index)))
-                  (assoc-in [jump-index :d] (- landing-index jump-index)))
+              (assoc-in
+               (if (= (get-in bc-list [jump-index :op])
+                      :FNEW)
+                 (assoc-in bc-list [jump-index :d] landing-index)
+                 (assoc-in bc-list [jump-index :d] (- landing-index jump-index)))
+               [jump-index :jt-nr]
+               (+ jump-index (- landing-index jump-index)))
               (assoc-in bc-list [jump-index :jt-nr] (+ jump-index (get-in bc-list [jump-index :d])))))
           bc-list
           jumps))
