@@ -113,3 +113,11 @@
                    (bytecode-format v)])
                 (:CFUNC constant-table))))
 
+
+(defn print-types [ct]
+  (map (fn [[k v]]
+         (if (not= k :counter)
+           (str "Name: " k
+                "\nNr: " (:nr v))
+           "")) (:types ct)))
+

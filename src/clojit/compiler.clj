@@ -18,8 +18,6 @@
 
 (defmacro dbg [x] `(let [x# ~x] (println '~x "=" x#) x#))
 
-;; ----------------------- INVOKE --- Math ----------------------
-
 (defn binop-reduce
   [slot env op acc arg]
     (let [arg-slot (inc slot)
@@ -39,21 +37,27 @@
       (bcf/constant-table-bytecode :CINT slot neutral))
     (binop op node slot env)))
 
-(defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
+;; ---------------- static-invoke --- Math ----------------------
 
-(defmethod invoke #'+ [node slot env]
+(defmulti static-invoke (fn [node slot env] (:method node)))
+
+(defmethod static-invoke 'add [node slot env]
+  (println "static-invoke add")
   (neutralbinop bcf/ADDVV 0 node slot env))
 
-(defmethod invoke #'* [node slot env]
+(defmethod static-invoke 'multiply [node slot env]
+  (println "static-invoke multiply")
   (neutralbinop bcf/MULVV 1 node slot env))
 
-(defmethod invoke #'- [node slot env]
+(defmethod static-invoke 'minus [node slot env]
+  (println "static-invoke minus")
   (let [args (:args node)]
     (if (= 1 (count args))
       (conj (ccompile (first args) slot env) (bcf/NEG slot slot))
       (binop bcf/SUBVV node slot env))))
 
-(defmethod invoke #'/ [node slot env]
+(defmethod static-invoke 'divide [node slot env]
+  (println "static-invoke divide")
   (let [args (:args node)]
     (if (> (count args) 1)
       (binop bcf/DIVVV node slot env)
@@ -64,6 +68,61 @@
             arg-bc (ccompile arg arg-slot env)
             div-bc (bcf/DIVVV slot one-slot arg-slot)]
         (flatten [one-bc arg-bc div-bc])))))
+
+;; ------------------- static-invoke --- Comparisant ----------------------
+
+(defmethod static-invoke 'lt [node slot env]
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISLT slot (first arg-slots) (second arg-slots))]))
+
+(defmethod static-invoke 'lte  [node slot env]
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISLE slot (first arg-slots) (second arg-slots))]))
+
+(defmethod static-invoke 'gt [node slot env]
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISGT slot (first arg-slots) (second arg-slots))]))
+
+(defmethod static-invoke 'gte  [node slot env]
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISGE slot (first arg-slots) (second arg-slots))]))
+
+(defmethod static-invoke 'equiv  [node slot env]
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISEQ slot (first arg-slots) (second arg-slots))]))
+
+(defmethod static-invoke :default [node slot env]
+  (let [args (:args node)
+        base slot
+        arg-count (count args)
+        arg-slots (drop (+ 2 base) (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))
+        func-slot (inc base)
+        lit (inc arg-count)]
+    [(ccompile (:fn (assoc node :fn-args args)) func-slot env)
+     arg-bc
+     (bcf/CALL base lit)]))
+
+
+;; -------------------------------------------------------------
+
+
+(defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
 
 (defmethod invoke #'mod [node slot env]
   (let [args (:args node)
@@ -103,51 +162,6 @@
     [arg-bc
      (bcf/NEWARRAY slot (first arg-slots))]))
 
-
-;; ----------------------- INVOKE --- Comparisant ----------------------
-
-(defmethod invoke #'< [node slot env]
-  (let [args (:args node)
-        arg-slots (drop slot (range))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (bcf/ISLT slot (first arg-slots) (second arg-slots))]))
-
-(defmethod invoke #'>=  [node slot env]
-  (let [args (:args node)
-        arg-slots (drop slot (range))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (bcf/ISGE slot (first arg-slots) (second arg-slots))]))
-
-(defmethod invoke #'>=  [node slot env]
-  (let [args (:args node)
-        arg-slots (drop slot (range))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (bcf/ISLE slot (first arg-slots) (second arg-slots))]))
-
-(defmethod invoke #'>  [node slot env]
-  (let [args (:args node)
-        arg-slots (drop slot (range))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (bcf/ISGT slot (first arg-slots) (second arg-slots))]))
-
-(defmethod invoke #'==  [node slot env]
-  (let [args (:args node)
-        arg-slots (drop slot (range))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (bcf/ISEQ slot (first arg-slots) (second arg-slots))]))
-
-(defmethod invoke #'aset [node slot env]
-  (let [args (:args node)
-        arg-slots (take (count args) (drop slot (range)))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (apply bcf/SETARRAY arg-slots)]))
-
 (defmethod invoke :default [node slot env]
   (let [args (:args node)
         base slot
@@ -171,6 +185,12 @@
 
 (defmethod ccompile :invoke [node slot env]
   [(invoke node slot env)])
+
+(defmethod ccompile :prim-invoke [node slot env]
+  [(invoke node slot env)])
+
+(defmethod ccompile :static-call [node slot env]
+  [(static-invoke node slot env)])
 
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
@@ -286,8 +306,11 @@
     (vec (concat statements ret))))
 
 (defmethod ccompile :var [node slot env]
-  (println "VAR")
   [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))])
+
+(defmethod ccompile :import [node slot env]
+  [])
+
 
 ;;-------------------------------------
 ;; 1..5   slot = test-bc             --
@@ -315,8 +338,12 @@
         after-binding-slot (+ slot (count bindings))]
     [(map ccompile bindings binding-slots (repeat merge-env))
      (ccompile (:body node) after-binding-slot merge-env)
-     (bcf/MOV slot after-binding-slot)
-     (bcf/DROP (inc slot) after-binding-slot)]))
+     (if (= slot after-binding-slot)
+       []
+       (bcf/MOV slot after-binding-slot))
+     (if (> (inc slot) after-binding-slot)
+       []
+       (bcf/DROP (inc slot) after-binding-slot))]))
 
 (defmethod ccompile :loop [node slot env]
   (let [bindings (:bindings node)
@@ -343,7 +370,7 @@
         loop-begin-slot (:slot (e/get-env env loop-id))]
     [(map ccompile exprs exprs-slots (repeat env))
      (bcf/BULKMOV loop-begin-slot src exprs-count)
-     (bcf/DROP (+ loop-begin-slot exprs-count) (+ src exprs-count))
+     #_(bcf/DROP (+ loop-begin-slot exprs-count) (+ src exprs-count))
      (bcf/JUMP loop-id)]))
 
 (defn exp [x n]
@@ -358,6 +385,11 @@
         (bcf/put-const-in-constant-table :CINT val)
         (bcf/constant-table-bytecode :CINT slot val)))))
 
+
+(defn get-type-nr [class-name]
+  (:nr (get (:types @bcf/constant-table)
+                  (.getName class-name))))
+
 (defmethod ccompile :const [node slot env]
   (let [val (:val node)
         op
@@ -367,14 +399,44 @@
          (= :string (:type node)) :CSTR
          (= :keyword (:type node)) :CKEY
          (= :bool (:type node)) :CBOOL
-         (= :nil (:type node)) :CNIL)]
+         (= :nil (:type node)) :CNIL
+         (= :class (:type node)) :CTYPE)]
     (cond
      (= op :CBOOL) (bcf/bool-bytecode slot val)
      (= op :CNIL)  (bcf/CNIL slot)
      (= op :CINT)  (creat-int-constant-bytecode val slot)
+     (= op :CTYPE)  (bcf/CTYPE slot (get-type-nr val))
      :default (do
                 (bcf/put-const-in-constant-table op val)
                 (bcf/constant-table-bytecode op slot val)))))
+
+(defmethod ccompile :deftype [node slot env]
+  (let [type-name (.getName (:class-name node))
+        type-node (dissoc node :op :env :form :closed-overs)]
+    (do
+      (bcf/add-type type-name type-node)
+      [])))
+
+(defmethod static-invoke 'gt [node slot env]
+  (let [args (:args node)
+        arg-slots (drop slot (range))
+        arg-bc (mapcat ccompile args arg-slots (repeat env))]
+    [arg-bc
+     (bcf/ISGT slot (first arg-slots) (second arg-slots))]))
+
+(defmethod ccompile :new [node slot env]
+  (let [args (:args node)
+        obj-slot slot
+        arg-slots (drop (inc slot) (range))
+        set-bc (mapcat (fn [node slot]
+                         [(ccompile node slot env)
+                          (bcf/SETFIELD obj-slot (or (:id node) (:arg-id node)) slot)])
+                       args
+                       arg-slots)]
+    [(ccompile (:class node) obj-slot env)
+     (bcf/ALLOC obj-slot obj-slot)
+     set-bc]))
+
 
 ;; ----------------------- main compile ----------------------------
 
@@ -400,23 +462,25 @@
 
     #_(println "Bytecode without jump resolution")
     #_(by-line-print (unresolved-bytecode constant-table))
+    (println "Types")
+    (apply println (bcprint/print-types constant-table))
+    (println "Const View")
+    (p/pprint (dissoc constant-table :bytecode :fn-bc-count :CFUNC :types))
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format constant-table))
-
-    #_(println "Constant Table View")
-    (p/pprint (dissoc constant-table :fn-bc-count ))
-
+    #_(println "Table View")
+    #_(p/pprint (dissoc constant-table :fn-bc-count))
     (bcf/set-empty)
     constant-table))
 
-
-
 (defn cleanup [bc]
   (let [bc-c1 (dissoc bc :CFUNC :fn-bc-count)
-        bc-c2 (update-in bc-c1 [:bytecode] (fn [bc-list] (map
-                                                          #(dissoc % :i :const :jt-nr :fnk)
-                                                          bc-list)))]
-    (dissoc bc-c2 :fn-bc-count :CFUNC)))
+        bc-c2 (update-in bc-c1
+                         [:bytecode]
+                         (fn [bc-list] (map
+                                        #(dissoc % :i :const :jt-nr :fnk)
+                                        bc-list)))]
+    (dissoc bc-c2 :fn-bc-count :CFUNC :counter)))
 
 ;; ----------------------- file output --------------------------------
 

@@ -12,7 +12,8 @@
                       :CKEY []
                       :CINT []
                       :CFLOAT []
-                      :CFUNC {}})
+                      :CFUNC {}
+                      :types {:counter 0}})
 
 
 (def constant-table (ref empty-constant-table))
@@ -195,7 +196,21 @@
     :a start-var
     :d end-var}])
 
+(defn ALLOC [dst typ]
+  [{:op :ALLOC
+    :a dst
+    :d typ}])
 
+(defn CTYPE [dst typ]
+  [{:op :CTYPE
+    :a dst
+    :d typ}])
+
+(defn SETFIELD [ref offset var]
+  [{:op :SETFIELD
+    :a ref
+    :b offset
+    :c var}])
 
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
@@ -221,6 +236,26 @@
 (defn set-empty []
   (dosync (alter constant-table (fn [ct] empty-constant-table))))
 
-(defn put-in-constant-table [k bc-list]
+(defn put-in-constant-table [k v]
   (dosync
-   (alter constant-table assoc k bc-list)))
+   (alter constant-table assoc k v)))
+
+(defn add-type [type-name t]
+  (dosync
+   (let [type-counter (:counter (:types @constant-table))
+         interface (mapv #(.getName %) (:interfaces t))
+         classname (.getName (:class-name t))
+         t (-> t
+               (assoc :nr type-counter :interfaces interface :class-name classname)
+               (dissoc :env ))
+         fields (:fields t)
+         clean-fields (map (fn [field]
+                             (-> field
+                                 (assoc :o-tag (.getName (:o-tag field)) :tag (.getName (:tag field)))
+                                 (dissoc :atom :env :form)))
+                           fields)
+         t (assoc t :fields clean-fields)]
+     (alter constant-table assoc-in [:types type-name]  t)
+     (alter constant-table update-in [:types :counter] inc))))
+
+
