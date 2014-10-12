@@ -491,14 +491,44 @@
 
 ;; ------------------------ protocols ----------------------
 
-
-#_(defprotocol pkill
-  (shot-self [self]))
+#_(-> '(defprotocol pkill
+      (shot-self [self])) anal/ast :form p/pprint)
 
 #_(def past (anal/ast '(defprotocol pkill
                        (shot-self [self]))))
 
 #_(-> past :op)
+
+#_(-> '(deftype* OINT [intprim]) anal/ast :fn)
+
+#_(defprotocol PA
+  (foo [self])
+  (seta! [self a]))
+
+#_(deftype Bar [a]
+  PA
+  (foo [self]
+       (println "PA foo"))
+  (seta! [self a]
+       (println "PA seta!")))
+
+#_(def bar_ast '(do
+                (deftype bar [foo fuu fii])
+                (->bar 1 2 3)))
+
+#_(c bar_ast)
+
+#_(p/pprint (anal/ast bar_ast))
+
+#_(-> '(.a b) anal/ast :op)
+
+#_(-> '(. b seta! 5) anal/ast :op)
+
+#_(-> '(foo b) anal/ast :op)
+
+#_(-> '(.foo b) anal/ast :op)
+
+#_(. b seta! 5)
 
 ;; ------------------------ types ----------------------
 
@@ -510,7 +540,9 @@
 ;; ------------------------ recur  ----------------------
 
 
-#_(c '(loop [a 1 b 2] (if (== a 5) a (recur a b))))
+#_(c '(loop [a 1 b 2] (if (== a 5)
+                      a
+                      (recur a b))))
 
 #_(c '(fn [a b c]
       (let [d 1 e 2 f 3]
@@ -531,9 +563,8 @@
             x)))
        5))
 
-(c '(loop [a 1 b 2]
+#_(c '(loop [a 1 b 2]
       (recur a b)))
-
 
 ;; ------------------------ LOOP  ----------------------
 
@@ -548,6 +579,12 @@
 #_(c '(fn [e f] (loop [h 1 j 2] (if (== (+ h j) (+ e f))
                                  (- j h)
                                  (recur e f)))))
+
+
+
+#_(c '((fn [a] (if a a false)) 100))
+
+
 
 
 #_(c '(do (fn [a b] (let [b 1 c (+ 1 b)]
