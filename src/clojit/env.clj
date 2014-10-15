@@ -13,12 +13,8 @@
                     (s/optional-key :freevar) s/Int}
    (s/optional-key :parent) (s/recursive #'env)})
 
-
-
-
 (def local-env
   (dissoc env :parent))
-
 
 (def freevar-env
   {:freevar s/Int})

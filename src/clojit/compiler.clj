@@ -15,7 +15,6 @@
 
 (declare ccompile)
 
-
 (defmacro dbg [x] `(let [x# ~x] (println '~x "=" x#) x#))
 
 (defn binop-reduce
@@ -42,22 +41,18 @@
 (defmulti static-invoke (fn [node slot env] (:method node)))
 
 (defmethod static-invoke 'add [node slot env]
-  (println "static-invoke add")
   (neutralbinop bcf/ADDVV 0 node slot env))
 
 (defmethod static-invoke 'multiply [node slot env]
-  (println "static-invoke multiply")
   (neutralbinop bcf/MULVV 1 node slot env))
 
 (defmethod static-invoke 'minus [node slot env]
-  (println "static-invoke minus")
   (let [args (:args node)]
     (if (= 1 (count args))
       (conj (ccompile (first args) slot env) (bcf/NEG slot slot))
       (binop bcf/SUBVV node slot env))))
 
 (defmethod static-invoke 'divide [node slot env]
-  (println "static-invoke divide")
   (let [args (:args node)]
     (if (> (count args) 1)
       (binop bcf/DIVVV node slot env)
@@ -192,6 +187,7 @@
 (defmethod ccompile :static-call [node slot env]
   [(static-invoke node slot env)])
 
+
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
 
@@ -222,7 +218,24 @@
                  {k v}))
              env)))
 
+
+(defmethod ccompile :deftype [node slot env]
+  (println "deftype")
+  (let [type-name (.getName (:class-name node))
+        type-node (dissoc node :op :env :form :closed-overs)]
+    (bcf/add-type type-name type-node)
+    (doseq [method (mapv ccompile (:methods node) (repeat 2) (repeat env))]
+      (dosync
+       (alter bcf/constant-table
+              assoc-in
+              [:types type-name :interfaces (:interface method) (keyword (:name method)) :loop-id]
+              (:loop-id method)))
+
+      (bcf/put-in-function-table (:loop-id method) (:bc method)))
+    []))
+
 (defmethod ccompile :fn [node slot env]
+  (println "fn")
   (let [fn-id (creat-fn-id node)
         all-fn-bc  (mapv #(ccompile % 2 env) (:methods node))
         arity-count (count all-fn-bc)
@@ -245,7 +258,6 @@
       [(bcf/FNEW slot fn-id)
        (bcf/UCLO 0 (dec slot))]
       [(bcf/FNEW slot fn-id)])))
-
 
 #_(if (and (contains? full-env :parent)  ;; has stuff in it
            (not (empty? (disj (set (keys (:parent full-env))) :parent))))
@@ -272,14 +284,6 @@
                             (bcf/FUNCF argc id))
                           (ccompile (:body node) body-compile-slot full-env)
                           (bcf/RET body-compile-slot)]))]
-    (comment
-      (dbg env)
-      (dbg unused-freevar)
-      (dbg used-freevar-env)
-      (dbg accessable-env)
-      (dbg local-env)
-      (dbg full-env))
-
     {:loop-id id
      :full-env full-env
      :fixed-arity argc
@@ -288,11 +292,54 @@
      :fn-id (:fn-id node)
      :bc bc}))
 
+(defn get-type-member-offset [class-name local-sym]
+  (-> @bcf/constant-table
+      :types
+      (get (.getName class-name))
+      :fields
+      (get (str local-sym))
+      :offset))
+
+(defmethod ccompile :method [node slot env]
+  (println "method")
+  #_(p/pprint node)
+  (let [params  (:params node)
+        argtc (count params)
+        args-slots (drop (inc slot) (range))
+        argc (:fixed-arity node)
+        body-compile-slot (inc (+ slot argtc))
+        id (e/get-id (:loop-id node))
+        local-env (merge (assoc (e/creat-env params args-slots)
+                           id
+                           {:slot body-compile-slot}
+                           (str (:name (:this node)))
+                           {:slot 2})
+                         (into {} (map (fn [local-sym]
+                                         {(str local-sym) {:type :self-load
+                                                           :this 2
+                                                           :offset (get-type-member-offset (:this (:env (:this node))) local-sym)}})
+                                       (keys (:locals (:env (:this node)))))))
+        full-env local-env
+        bc (vec (flatten [(bcf/FUNCF argc id)
+                          (ccompile (:body node) body-compile-slot full-env)
+                          (bcf/RET body-compile-slot)]))]
+    {:loop-id id
+     :interface (.getName (:interface node))
+     :name (:name node)
+     :ns (-> node :this :env :ns .getName)
+     :full-env full-env
+     :fixed-arity argc
+     :arg-count argtc
+     :bc bc}))
+
+
 (defmethod ccompile :local [node slot env]
   (let [source (e/get-env env (str (:name node)))]
-    (if (:freevar source)
-      [(bcf/GETFREEVAR slot (:freevar source) (str (:name node)))]
-      [(bcf/MOV slot (:slot source))])))
+
+    (cond
+     (:freevar source) [(bcf/GETFREEVAR slot (:freevar source) (str (:name node)))]
+     (:this source) [(bcf/GETFIELD slot (:this source) (:offset source))]
+     :default [(bcf/MOV slot (:slot source))])))
 
 (defmethod ccompile :maybe-class [node slot env]
   (let [source (e/get-env env (str (:class node))) ]
@@ -300,10 +347,49 @@
       [(bcf/GETFREEVAR slot (:freevar source) (str (:class node)))]
       [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:class node))))])))
 
+(defn is-macroexpand-of-defprotocol [node]
+  (= (-> node
+         :raw-forms
+         first
+         first
+         str)
+     "defprotocol"))
+
 (defmethod ccompile :do [node slot env]
-  (let [statements (doall (map ccompile (:statements node) (repeat slot) (repeat env)))
-        ret (ccompile (:ret node) slot env)]
-    (vec (concat statements ret))))
+  (if (is-macroexpand-of-defprotocol node)
+    (ccompile (assoc node :op :defprotocol) slot env)
+    (let [statements (doall (map ccompile (:statements node) (repeat slot) (repeat env)))
+          ret (ccompile (:ret node) slot env)]
+      (vec (concat statements ret)))))
+
+(defmethod ccompile :defprotocol [node slot env]
+  (let [name (-> node
+                 :statements
+                 (nth 4)
+                 :args
+                 last
+                 :args
+                 first
+                 :val
+                 :on-interface)
+        method-meta (-> node
+                        :statements
+                        (nth 4)
+                        :args
+                        last
+                        :args
+                        (nth 2)
+                        :expr
+                        :val)
+        #_typed-methods #_(-> node
+                          :statements
+                          second
+                          :raw-forms
+                          first
+                          last)]
+    (bcf/add-protocol name method-meta)
+    ;; clojure returns symbol of name of the protocol
+    []))
 
 (defmethod ccompile :var [node slot env]
   [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))])
@@ -385,7 +471,6 @@
         (bcf/put-const-in-constant-table :CINT val)
         (bcf/constant-table-bytecode :CINT slot val)))))
 
-
 (defn get-type-nr [class-name]
   (:nr (get (:types @bcf/constant-table)
                   (.getName class-name))))
@@ -400,29 +485,17 @@
          (= :keyword (:type node)) :CKEY
          (= :bool (:type node)) :CBOOL
          (= :nil (:type node)) :CNIL
-         (= :class (:type node)) :CTYPE)]
+         (= :class (:type node)) :CTYPE
+         :default :CNOTHING)]
     (cond
      (= op :CBOOL) (bcf/bool-bytecode slot val)
      (= op :CNIL)  (bcf/CNIL slot)
      (= op :CINT)  (creat-int-constant-bytecode val slot)
      (= op :CTYPE)  (bcf/CTYPE slot (get-type-nr val))
-     :default (do
-                (bcf/put-const-in-constant-table op val)
-                (bcf/constant-table-bytecode op slot val)))))
-
-(defmethod ccompile :deftype [node slot env]
-  (let [type-name (.getName (:class-name node))
-        type-node (dissoc node :op :env :form :closed-overs)]
-    (do
-      (bcf/add-type type-name type-node)
-      [])))
-
-(defmethod static-invoke 'gt [node slot env]
-  (let [args (:args node)
-        arg-slots (drop slot (range))
-        arg-bc (mapcat ccompile args arg-slots (repeat env))]
-    [arg-bc
-     (bcf/ISGT slot (first arg-slots) (second arg-slots))]))
+     (some #{op} [:CFLOAT :CKEY :CSTR :CBOOL]) (do
+                                               (bcf/put-const-in-constant-table op val)
+                                               (bcf/constant-table-bytecode op slot val))
+     :default (println "Could not find const type: " (:type node) " val: " val ))))
 
 (defmethod ccompile :new [node slot env]
   (let [args (:args node)
@@ -437,6 +510,9 @@
      (bcf/ALLOC obj-slot obj-slot)
      set-bc]))
 
+(defmethod ccompile :instance-call [node slot env]
+  (println "instance call")
+  #_(p/pprint (:form node)))
 
 ;; ----------------------- main compile ----------------------------
 
@@ -444,18 +520,22 @@
   (vec (flatten (ccompile node 0 {}))))
 
 (defn c [clj-form]
-  (let [node (anal/ast clj-form)
+  (let [node  (anal/asteval clj-form)
         bc (c0 node)
         bc-exit (conj bc {:op :EXIT :a 0 :d nil})
         constant-table (bcf/put-in-function-table "0" bc-exit)
+
         resolved-bc-list (bcp/resolve-jump-offset (:CFUNC constant-table))
         constant-table (bcf/put-in-constant-table :bytecode resolved-bc-list)
+
+        resolved-type-methods (bcp/resolve-type-method @bcf/constant-table)
+        constant-table (bcf/put-in-constant-table :types resolved-type-methods)
+
         constant-table (bcf/put-in-constant-table
                         :fn-bc-count
                         (into {} (map (fn [[k v]]
                                         {k (count v)})
                                       (:CFUNC constant-table))))]
-
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post constant-table)]
                                     (when bc-server-post
                                       (:index (:body bc-server-post)))))
@@ -465,11 +545,9 @@
     (println "Types")
     (apply println (bcprint/print-types constant-table))
     (println "Const View")
-    (p/pprint (dissoc constant-table :bytecode :fn-bc-count :CFUNC :types))
+    (p/pprint (dissoc constant-table :fn-bc-count :bytecode :CFUNC :types :protocol))
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format constant-table))
-    #_(println "Table View")
-    #_(p/pprint (dissoc constant-table :fn-bc-count))
     (bcf/set-empty)
     constant-table))
 
@@ -491,8 +569,123 @@
 
 ;; ------------------------ protocols ----------------------
 
-#_(-> '(defprotocol pkill
-      (shot-self [self])) anal/ast :form p/pprint)
+
+(defn compiler-entery [clj-infile]
+  (let [clj-str (slurp clj-infile)
+        clj-form-file (edn/read-string clj-str)
+        clj-bc (c clj-form-file)
+        clj-clean-bc (cleanup clj-bc)]
+    (gen-file-output clj-clean-bc)))
+
+
+#_(c '(do
+      (defprotocol REST
+        (GET [self]))
+      (deftype API [a]
+        REST
+        (GET [self] a))))
+
+
+
+#_(c '(do
+      (defprotocol REST
+        (GET [self]))
+
+      (deftype API [a]
+        REST
+        (GET [self] a))))
+
+
+
+#_(-> '(do
+       (defprotocol bla
+         (bla2 [self b])
+         (blabla [self c d]))
+       (deftype Pipi [a]
+         bla
+         (bla2 [self b] b)
+         (blabla [self c d]
+                 (+ c d a))))
+   c
+    )
+
+
+#_(def past (-> '(defprotocol pkill
+                 (shot-self [self])
+                 (fall-on-sword [self ^long a])
+                 (jump-off-cliff [self ^long a ^long b]))
+              anal/ast))
+
+
+#_(c '(do (deftype Person [a])
+        (defprotocol pkill
+          (shot-self [self]))
+      10))
+
+#_(c '(deftype a [b]))
+
+#_(-> '(deftype Person [a]
+       pkill
+       (shot-self [self]
+                  (+ 101 102))
+  anal/ast
+  :body
+  :statements
+  first ;;<- deftype
+  (dissoc :closed-overs  :fields :protocol-callsites)
+  anal/dissoc-env
+
+
+  p/pprint))
+
+#_(c '(do
+      (deftype Person [a b])
+      ))
+
+#_(-> '(deftype Person [a]
+       #_pkill
+       #_(shot-self [self]
+                    (println "test print")))
+    anal/ast
+    :form
+
+    )
+
+
+#_(deftype Person [a]
+  pkill
+  (shot-self [self]
+             (println "test print")))
+
+
+#_(-> past
+    :form
+    p/pprint)
+
+
+#_(-> past
+    :statements
+    second
+    :raw-forms
+    first
+    p/pprint)
+
+#_(-> past
+    :statements
+    second
+    :raw-forms
+    first
+    last
+    first
+    second
+    second
+    p/pprint)
+
+#_(-> past
+    :form
+    p/pprint)
+
+#_(map (fn [a] (if (= (:op a) :invoke)  a)) (-> past :statements))
 
 #_(def past (anal/ast '(defprotocol pkill
                        (shot-self [self]))))

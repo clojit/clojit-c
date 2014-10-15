@@ -118,6 +118,10 @@
   (map (fn [[k v]]
          (if (not= k :counter)
            (str "Name: " k
-                "\nNr: " (:nr v))
-           "")) (:types ct)))
+                "\nNr: " (:nr v)
+                "\nProtocols:\n " (apply str (interpose "\n " (keys (:interfaces v)))))
+           ""))
+       (:types ct)))
+
+
 

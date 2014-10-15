@@ -21,7 +21,10 @@
 
 (defn remove-landings [bc-list landings]
   (reduce (fn [bc-list [id index]]
-            (assoc-in  bc-list [index :d] nil))
+            (-> bc-list
+                (assoc-in [index :landing] (get-in bc-list [index :d]))
+                (assoc-in [index :d] nil)
+                ))
           bc-list
           landings))
 
@@ -52,9 +55,6 @@
                    bc)) bc-list))
 
 
-#_(p/pprint (-> [{:op :FNEW :a 0 :d "1234"}{:op :FUNCF :a 0 :d nil}{:op :CALL :a 0 :d 0}]
-              fn-add-key))
-
 (defn resolve-jump-offset [fn-map]
   (let [bc-list (vec (apply concat (vals fn-map)))
         landings (get-landings bc-list [:FUNCF :FUNCV :nop :LOOP])
@@ -65,4 +65,40 @@
         (resolve-jumps landings jumps)
         take-out-nops)))
 
-#_(resolve-jump-offset fnmap)
+(defn resolve-interface [interface-data bclist]
+  (into {} (map (fn [[key data]]
+                  (if (or (= key :nr)
+                          (= key :name))
+                    {key data}
+                    {key (dissoc (assoc data :func
+                                   (first (filter (comp not nil?) (map (fn [bc] (when (= (:landing bc) (:loop-id data))
+                                                                                  (:i bc)))
+                                                                       bclist)))) :loop-id)}))
+                interface-data)))
+
+
+(defn resolve-type-method [ct]
+  (into {} (map
+            (fn [[type-name type-data]]
+              (if (= :counter type-name)
+                {type-name type-data}
+                {type-name
+                 (merge
+                  (dissoc type-data :interfaces)
+                  {:interfaces
+                   (into {}
+                         (map (fn [[interface-name interface-data]]
+                                {interface-name (resolve-interface interface-data (:bytecode ct))})
+                              (:interfaces type-data)))})}))
+            (:types ct))))
+
+#_(-> (resolve-type-method {:bytecode [{:i 5 :landing "55232"}
+                                     {:i 6 :landing "65353"}]
+                          :types {"Person" {:otherstuff 5
+                                            :interfaces {"test" {:nr 10 :name "test" :blabla {:loop-id "55232"}}
+                                                         "test2" {:nr 11 :name "test2" :blabla2 {:loop-id "65353"}}}}
+                                  "Person2" {:otherstuff 5
+                                            :interfaces {"test" {:nr 10 :name "test" :blabla {:loop-id "55232"}}
+                                                         "test2" {:nr 11 :name "test2" :blabla2 {:loop-id "65353"}}}}}
+                          })
+    p/pprint)

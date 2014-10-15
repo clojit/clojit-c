@@ -13,7 +13,8 @@
                       :CINT []
                       :CFLOAT []
                       :CFUNC {}
-                      :types {:counter 0}})
+                      :types {:counter 0}
+                      :protocol {:counter 0}})
 
 
 (def constant-table (ref empty-constant-table))
@@ -212,6 +213,14 @@
     :b offset
     :c var}])
 
+;; GETFIELD  dst ref  offset(lit)
+
+(defn GETFIELD [dst ref offset]
+  [{:op :GETFIELD
+    :a dst
+    :b ref
+    :c offset}])
+
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
 (defn find-constant-index [op const]
@@ -240,22 +249,60 @@
   (dosync
    (alter constant-table assoc k v)))
 
+(defn clean-protcol-method-data [pmd]
+  (-> pmd
+      (dissoc :line :column :end-line :end-column)
+      (assoc :arglists (first (:arglists pmd)))))
+
+(defn add-protocol [protocol-name protocol-methods]
+  (let [protocol (into {} (map (fn [[name data]]
+                                 {name (clean-protcol-method-data data)})
+                               protocol-methods))]
+    (dosync
+     (alter constant-table
+            assoc-in
+            [:protocol (.getName protocol-name)]
+            (assoc protocol :nr (:counter (:protocol @constant-table))))
+     (alter constant-table update-in [:protocol :counter] inc))))
+
+
+(defn get-protocol [name ct]
+  (-> ct
+      :protocol
+      (get name)
+      ))
+
 (defn add-type [type-name t]
   (dosync
    (let [type-counter (:counter (:types @constant-table))
-         interface (mapv #(.getName %) (:interfaces t))
+         interface (into {} (map (fn [interface]
+                                   (let [name (.getName interface)]
+                                     {name
+                                      (assoc
+                                        (get-protocol name @constant-table)
+                                        :name name)}))
+                                 (:interfaces t)))
          classname (.getName (:class-name t))
          t (-> t
-               (assoc :nr type-counter :interfaces interface :class-name classname)
-               (dissoc :env ))
+               (assoc :nr type-counter
+                      :interfaces interface
+                      :class-name classname)
+               (dissoc :env :children :protocol-callsites :keyword-callsites :methods))
          fields (:fields t)
-         clean-fields (map (fn [field]
-                             (-> field
-                                 (assoc :o-tag (.getName (:o-tag field)) :tag (.getName (:tag field)))
-                                 (dissoc :atom :env :form)))
-                           fields)
+         clean-fields (into {} (map-indexed (fn [i field]
+                                              {(str (:name field))
+                                               (-> field
+                                                   (assoc :o-tag (.getName (:o-tag field))
+                                                     :tag (.getName (:tag field))
+                                                     :offset i)
+                                                   (dissoc :atom :env :form))})
+                                            fields))
          t (assoc t :fields clean-fields)]
      (alter constant-table assoc-in [:types type-name]  t)
      (alter constant-table update-in [:types :counter] inc))))
+
+
+
+
 
 

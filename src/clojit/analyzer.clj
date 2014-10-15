@@ -1,11 +1,22 @@
 (ns clojit.analyzer
   (:require
     [clojure.tools.analyzer.jvm :as ana]
+    [clojure.tools.analyzer.utils :as u]
     [clojure.pprint :as p]))
 
 
 (defn ast [form]
-  (ana/analyze form))
+
+  (let [a (ana/analyze form)]
+
+    a))
+
+(defn asteval [form]
+
+  (let [a
+        (ana/analyze+eval form)]
+
+    a))
 
 (defn env-kick [node]
   (cond
@@ -13,6 +24,9 @@
                  (into {} (map (fn [[k v]] {k (env-kick v)}) env-less-node)))
    (vector? node) (mapv env-kick node)
    :default node))
+
+(defn dissoc-env [ast]
+  (u/dissoc-env ast))
 
 (defn in-const-table? [ast-node ast-node-filter-type]
   (and (= (:op ast-node) :const)
