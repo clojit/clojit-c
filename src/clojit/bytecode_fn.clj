@@ -14,7 +14,7 @@
                       :CFLOAT []
                       :CFUNC {}
                       :types {:counter 0}
-                      :protocol {:counter 0}})
+                      :protocol {:counter 0 :method-counter 0}})
 
 
 (def constant-table (ref empty-constant-table))
@@ -159,6 +159,11 @@
     :a a-slot
     :d d-slot}])
 
+(defn VFNEW [dst protocol-fn]
+  [{:op :VFNEW
+    :a dst
+    :d protocol-fn}])
+
 (defn CNIL [a-slot]
   [{:op :CNIL
     :a a-slot
@@ -250,27 +255,29 @@
    (alter constant-table assoc k v)))
 
 (defn clean-protcol-method-data [pmd]
-  (-> pmd
-      (dissoc :line :column :end-line :end-column)
-      (assoc :arglists (first (:arglists pmd)))))
+  (let [protocol (-> pmd
+                     (dissoc :line :column :end-line :end-column)
+                     (assoc :protocol-method-nr (get-in @constant-table [:protocol :method-counter])
+                       :arglists (first (:arglists pmd))))]
+    (alter constant-table update-in [:protocol :method-counter] inc)
+    protocol))
 
 (defn add-protocol [protocol-name protocol-methods]
-  (let [protocol (into {} (map (fn [[name data]]
-                                 {name (clean-protcol-method-data data)})
-                               protocol-methods))]
-    (dosync
+  (dosync
+   (let [protocol-counter (:counter (:protocol @constant-table))
+         protocol (into {} (map (fn [[name data]]
+                                  {name (clean-protcol-method-data data)})
+                                protocol-methods))]
      (alter constant-table
             assoc-in
             [:protocol (.getName protocol-name)]
-            (assoc protocol :nr (:counter (:protocol @constant-table))))
+            (assoc protocol :nr protocol-counter))
      (alter constant-table update-in [:protocol :counter] inc))))
-
 
 (defn get-protocol [name ct]
   (-> ct
       :protocol
-      (get name)
-      ))
+      (get name)))
 
 (defn add-type [type-name t]
   (dosync
@@ -300,9 +307,3 @@
          t (assoc t :fields clean-fields)]
      (alter constant-table assoc-in [:types type-name]  t)
      (alter constant-table update-in [:types :counter] inc))))
-
-
-
-
-
-

@@ -113,9 +113,7 @@
      arg-bc
      (bcf/CALL base lit)]))
 
-
 ;; -------------------------------------------------------------
-
 
 (defmulti invoke (fn [node slot env] ((comp :var :fn) node)))
 
@@ -187,6 +185,19 @@
 (defmethod ccompile :static-call [node slot env]
   [(static-invoke node slot env)])
 
+(defmethod ccompile :protocol-invoke [node slot env]
+  (let [args        (:args node)
+        base        slot
+        arg-count   (count args)
+        target-slot (+ 2 base)
+        arg-slots   (drop (+ 3 base) (range))
+        arg-bc      (mapcat ccompile args arg-slots (repeat env))
+        func-slot   (inc base)
+        lit         (inc arg-count)]
+    [(ccompile  (:protocol-fn node) func-slot env)
+     (ccompile (:target node) target-slot env)
+     arg-bc
+     (bcf/CALL base lit)]))
 
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
@@ -220,7 +231,6 @@
 
 
 (defmethod ccompile :deftype [node slot env]
-  (println "deftype")
   (let [type-name (.getName (:class-name node))
         type-node (dissoc node :op :env :form :closed-overs)]
     (bcf/add-type type-name type-node)
@@ -235,7 +245,6 @@
     []))
 
 (defmethod ccompile :fn [node slot env]
-  (println "fn")
   (let [fn-id (creat-fn-id node)
         all-fn-bc  (mapv #(ccompile % 2 env) (:methods node))
         arity-count (count all-fn-bc)
@@ -301,8 +310,6 @@
       :offset))
 
 (defmethod ccompile :method [node slot env]
-  (println "method")
-  #_(p/pprint node)
   (let [params  (:params node)
         argtc (count params)
         args-slots (drop (inc slot) (range))
@@ -391,12 +398,22 @@
     ;; clojure returns symbol of name of the protocol
     []))
 
+
+(defn find-protocol-method-nr [var-sym]
+  (first
+   (filter (comp not nil?)
+           (map
+            (fn [[name data]]
+              (:protocol-method-nr (get data (keyword var-sym))))
+            (:protocol @bcf/constant-table)))))
+
 (defmethod ccompile :var [node slot env]
-  [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))])
+  (if (bcf/find-constant-index :CSTR (str (:form node)))
+    [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))]
+    [(bcf/VFNEW slot (find-protocol-method-nr (:form node)))]))
 
 (defmethod ccompile :import [node slot env]
   [])
-
 
 ;;-------------------------------------
 ;; 1..5   slot = test-bc             --
@@ -545,7 +562,7 @@
     (println "Types")
     (apply println (bcprint/print-types constant-table))
     (println "Const View")
-    (p/pprint (dissoc constant-table :fn-bc-count :bytecode :CFUNC :types :protocol))
+    (p/pprint (dissoc constant-table :fn-bc-count :bytecode :CFUNC :types))
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format constant-table))
     (bcf/set-empty)
@@ -567,9 +584,6 @@
   (let [bytecode-output-json (with-out-str (json/pprint bc-output))]
     (spit "clojure-bc.json" bytecode-output-json)))
 
-;; ------------------------ protocols ----------------------
-
-
 (defn compiler-entery [clj-infile]
   (let [clj-str (slurp clj-infile)
         clj-form-file (edn/read-string clj-str)
@@ -577,15 +591,67 @@
         clj-clean-bc (cleanup clj-bc)]
     (gen-file-output clj-clean-bc)))
 
+;; ------------------------ protocols ----------------------
+
+
+#_(-> '(do
+       (defprotocol REST
+         (GET [self]))
+       (deftype API [a]
+         REST
+         (GET [self] a))
+      (GET (->API 5)))
+    anal/asteval
+    :statements
+    p/pprint)
 
 #_(c '(do
-      (defprotocol REST
-        (GET [self]))
-      (deftype API [a]
-        REST
-        (GET [self] a))))
+       (defprotocol REST
+         (GET [self]))
+       (deftype API [a]
+         REST
+         (GET [self] a))
+      (GET (->API 5))
+       ))
 
 
+#_(-> '(do
+
+       (defprotocol REST
+         (GET [self]))
+
+       (deftype API [a]
+         REST
+         (GET [self] a))
+
+       (let [b (API 5)]
+         (GET b))
+       )
+    anal/ast
+    :ret
+    :body
+    :ret
+    keys
+    p/pprint
+    )
+
+
+#_(-> '(do
+
+       (defprotocol REST
+         (GET [self]))
+
+       (deftype API [a]
+         REST
+         (GET [self] a))
+
+
+       (println (API. 101))
+       )
+    anal/ast
+    :ret
+    :fn
+    :op)
 
 #_(c '(do
       (defprotocol REST
