@@ -531,6 +531,53 @@
   (println "instance call")
   #_(p/pprint (:form node)))
 
+;; ---------------------- generate vtable --------------------------
+
+
+
+;; Confusing function but simple
+;; Loops threw all types, all interfaces, then all methods and finds the func index for that method (param) inside of each type
+
+(defn find-implementation [method-nr ct]
+  (into {} (filter (comp not nil?)
+                  (map (fn [[type-name type-data]]
+                         #_(println "type-name: " type-name " type-data: ")
+                         #_(p/pprint type-data)
+                         (first (filter (comp not nil?)
+                                        (map (fn [[interface-name interface-data]]
+                                               #_(println "interface-name: " interface-name " interface-data: ")
+                                               #_(p/pprint interface-data)
+
+                                               (let [func (first (filter (comp not nil?)
+                                                                         (map (fn [[method-name method-data]]
+                                                                                #_(println "method-name: " method-name " method-data: ")
+                                                                                #_(p/pprint method-data)
+                                                                                (when-not (or (= :nr method-name)
+                                                                                              (= :name method-name))
+                                                                                  (when (= method-nr
+                                                                                           (:protocol-method-nr method-data))
+                                                                                    (:func method-data)))) interface-data)))]
+                                                 (when func
+                                                   {(:nr type-data) func} )))
+                                             (:interfaces type-data)))))
+                       (:types ct)))))
+
+(defn generate-vtable [ct]
+  (doall (into {} (mapv (fn [[protocol-name protocol-data]]
+                          #_(println "protocol-name: " protocol-name " protocol-data: ")
+                          #_(p/pprint protocol-data)
+                          (when-not (or (= protocol-name :method-counter)
+                                        (= protocol-name :counter))
+                            (doall (into {} (map (fn [[protocol-method-name method-data]]
+                                                   #_(println "protocol-method-name: " protocol-method-name " method-data: ")
+                                                   #_(p/pprint method-data)
+                                                   (when-not (= protocol-method-name
+                                                                :nr)
+                                                     (let [method-nr (:protocol-method-nr method-data)]
+                                                       {method-nr (find-implementation method-nr ct)})))
+                                                 protocol-data)))))
+                        (:protocol ct)))))
+
 ;; ----------------------- main compile ----------------------------
 
 (defn c0 [node]
@@ -552,7 +599,9 @@
                         :fn-bc-count
                         (into {} (map (fn [[k v]]
                                         {k (count v)})
-                                      (:CFUNC constant-table))))]
+                                      (:CFUNC constant-table))))
+        vtable (generate-vtable constant-table)
+        constant-table (bcf/put-in-constant-table :vtable vtable)]
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post constant-table)]
                                     (when bc-server-post
                                       (:index (:body bc-server-post)))))
@@ -562,7 +611,7 @@
     (println "Types")
     (apply println (bcprint/print-types constant-table))
     (println "Const View")
-    (p/pprint (dissoc constant-table :fn-bc-count :bytecode :CFUNC :types))
+    (p/pprint (dissoc constant-table :fn-bc-count :CFUNC :types :protocol :bytecode))
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format constant-table))
     (bcf/set-empty)
@@ -589,7 +638,7 @@
         clj-form-file (edn/read-string clj-str)
         clj-bc (c clj-form-file)
         clj-clean-bc (cleanup clj-bc)]
-    (gen-file-output clj-clean-bc)))
+    nil #_(gen-file-output clj-clean-bc)))
 
 ;; ------------------------ protocols ----------------------
 

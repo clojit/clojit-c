@@ -29,6 +29,12 @@
    #"null"
    (format "%4s" "")))
 
+(defmethod format-bc :VFNEW [bc]
+  (clojure.string/replace
+   (format "%03d %11s  %4s         %6s ==> %15s" (:i bc) (:op bc) (:a bc) (:d bc) (:name bc))
+   #"null"
+   (format "%4s" "")))
+
 (defmethod format-bc :GETFREEVAR [bc]
   (clojure.string/replace
    (format "%03d %11s  %4s         %6s ; %s" (:i bc) (:op bc) (:a bc) (:d bc) (:name bc))

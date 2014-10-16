@@ -1,5 +1,6 @@
 (ns clojit.bytecode-patch
   (:require
+    [clojit.bytecode-fn :as bcf]
     [clojure.pprint :as p]
     [clojure.tools.trace :as t]
     [schema.core :as s]))
@@ -48,10 +49,34 @@
                          #(if (= (:op %) :nop) (:a %) %)
                          bc-list))))
 
-
 (defn fn-add-key [bc-list]
   (mapv (fn [bc] (if (= :FNEW (:op bc))
                    (assoc bc :fnk (:d bc))
+                   bc)) bc-list))
+
+#_(defn get-method-name [protocol-method-nr]
+  (let [protocols (:protocol @bcf/constant-table)]
+    (map (fn [[name data]]
+
+           (map (fn [method-name data]
+
+                  (when (map? data)
+                    (if (= protocol-method-nr
+                           (:protocol-method-nr data))
+                      (:name data))
+
+                    )
+
+                  ) data)
+
+           ) protocols)
+
+
+    ))
+
+#_(defn vfn-add-protocol [bc-list]
+  (mapv (fn [bc] (if (= :VFNEW (:op bc))
+                   (assoc bc :name  (get-method-name (:d bc)))
                    bc)) bc-list))
 
 
