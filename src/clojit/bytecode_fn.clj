@@ -14,8 +14,9 @@
                       :CINT []
                       :CFLOAT []
                       :CFUNC {}
-                      :types {:counter 0}
-                      :protocol {:counter 0 :method-counter 0}})
+                      :types {}
+                      :protocol {}
+                      :uuid-counter 0})
 
 (def constant-table (ref empty-constant-table))
 
@@ -269,14 +270,14 @@
 (defn clean-protcol-method-data [pmd]
   (let [protocol (-> pmd
                      (dissoc :line :column :end-line :end-column :doc)
-                     (assoc :protocol-method-nr (get-in @constant-table [:protocol :method-counter])
+                     (assoc :protocol-method-nr (get-in @constant-table [:uuid-counter])
                             :arglists (first (:arglists pmd))))]
-    (alter constant-table update-in [:protocol :method-counter] inc)
+    (alter constant-table update-in [:uuid-counter] inc)
     protocol))
 
 (defn add-protocol [protocol-name protocol-methods]
   (dosync
-   (let [protocol-counter (:counter (:protocol @constant-table))
+   (let [protocol-counter (:uuid-counter @constant-table)
          protocol-name (.getName protocol-name)
          protocol-name-nonqualified (last (str/split protocol-name  #"\."))
          protocol (into {} (map (fn [[name data]]
@@ -288,7 +289,7 @@
             assoc-in
             [:protocol protocol-name]
             (assoc protocol :nr protocol-counter))
-     (alter constant-table update-in [:protocol :counter] inc))))
+     (alter constant-table update-in [:uuid-counter] inc))))
 
 (defn get-protocol [name ct]
   (-> ct
@@ -297,7 +298,7 @@
 
 (defn add-type [type-name t]
   (dosync
-   (let [type-counter (:counter (:types @constant-table))
+   (let [type-counter (:uuid-counter  @constant-table)
          interface (into {} (map (fn [interface]
                                    (let [name (.getName interface)]
                                      (if (re-find #"IType" name)
@@ -326,5 +327,5 @@
                                             fields))
          t (assoc t :fields clean-fields)]
      (put-as-global-name! (str (:name t)) :type-name constant-table)
-     (alter constant-table assoc-in [:types type-name]  t)
-     (alter constant-table update-in [:types :counter] inc))))
+     (alter constant-table assoc-in [:types type-name] t)
+     (alter constant-table update-in [:uuid-counter] inc))))

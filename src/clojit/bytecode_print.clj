@@ -122,11 +122,8 @@
 
 (defn print-types [ct]
   (map (fn [[k v]]
-         (if (not= k :counter)
-           (str "Name: " k
-                "\nNr: " (:nr v)
-                "\nProtocols:\n " (apply str (interpose "\n " (keys (:interfaces v)))))
-           ""))
+         (str "Name: " k " Nr: " (:nr v)
+              "\nProtocols:\n " (apply str (interpose "\n " (keys (:interfaces v)))) "\n------------------\n"))
        (:types ct)))
 
 
