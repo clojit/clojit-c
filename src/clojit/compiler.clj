@@ -172,9 +172,11 @@
 (defmulti ccompile (fn [node slot env] (:op node)))
 
 (defmethod ccompile :def [node slot env]
-  (bcf/put-const-in-constant-table :CSTR (str (:name node)))
-  [(ccompile (:init node) slot env)
-   (bcf/NSSETS slot (bcf/find-constant-index :CSTR (str (:name node))))])
+  (let [name (str (:name node))]
+    (bcf/put-as-global-name! name :def bcf/constant-table)
+    (bcf/put-const-in-constant-table :CSTR name)
+    [(ccompile (:init node) slot env)
+     (bcf/NSSETS slot (bcf/find-constant-index :CSTR name))]))
 
 (defmethod ccompile :invoke [node slot env]
   [(invoke node slot env)])
@@ -534,7 +536,6 @@
 ;; ---------------------- generate vtable --------------------------
 
 
-
 ;; Confusing function but simple
 ;; Loops threw all types, all interfaces, then all methods and finds the func index for that method (param) inside of each type
 
@@ -638,7 +639,7 @@
         clj-form-file (edn/read-string clj-str)
         clj-bc (c clj-form-file)
         clj-clean-bc (cleanup clj-bc)]
-    nil #_(gen-file-output clj-clean-bc)))
+    (gen-file-output clj-clean-bc)))
 
 ;; ------------------------ protocols ----------------------
 
