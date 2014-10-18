@@ -294,7 +294,7 @@
                (assoc :nr type-counter
                       :interfaces interface
                       :class-name classname)
-               (dissoc :env :children :protocol-callsites :keyword-callsites :methods))
+               (dissoc :env :children :protocol-callsites :keyword-callsites :methods :constants))
          fields (:fields t)
          clean-fields (into {} (map-indexed (fn [i field]
                                               {(str (:name field))
