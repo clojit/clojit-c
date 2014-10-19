@@ -4,7 +4,6 @@
     [clojure.tools.trace :as t]))
 
 
-
 (defn by-line-print [lst]
   (doseq [s lst]
       (println s)))

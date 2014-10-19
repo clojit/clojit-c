@@ -407,7 +407,7 @@
            (map
             (fn [[name data]]
               (:protocol-method-nr (get data (keyword var-sym))))
-            (:protocol @bcf/constant-table)))))
+            (:protocols @bcf/constant-table)))))
 
 (defmethod ccompile :var [node slot env]
   (if (bcf/find-constant-index :CSTR (str (:form node)))
@@ -572,12 +572,17 @@
   (let [type-map (into {} (map (fn [t]
                                  {(:nr t)
                                   (-> t
-                                      (dissoc :nr)
                                       (assoc :fields (vec (vals (:fields t)))))})
                                (vals (:types ct))))]
     (mapv #(or (get type-map %)) (range (count type-map)))))
 
 ;; ----------------------- main compile ----------------------------
+
+(defn switch-protocol-key [protocols]
+  (into {} (map
+            (fn [[k-name v-data]]
+              {(:nr v-data) (dissoc v-data :nr)})
+            protocols)))
 
 (defn c0 [node]
   (vec (flatten (ccompile node 0 {}))))
@@ -599,8 +604,12 @@
 
         ct5 (bcf/put-in-constant-table :types (creat-type-vector @bcf/constant-table))
 
+        protocols (switch-protocol-key (:protocols @bcf/constant-table))
 
-        ]
+        ct6 (bcf/put-in-constant-table :protocols protocols)
+
+        ct @bcf/constant-table]
+
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post @bcf/constant-table)]
                                     (when bc-server-post
                                       (:index (:body bc-server-post)))))
@@ -616,7 +625,8 @@
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format @bcf/constant-table))
     (bcf/set-empty)
-    @bcf/constant-table))
+
+    ct))
 
 (defn cleanup [bc]
   (let [bc-c1 (dissoc bc :CFUNC :fn-bc-count)

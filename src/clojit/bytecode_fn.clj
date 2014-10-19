@@ -16,7 +16,7 @@
                       :CFUNC {}
                       :types {}
                       :protocols {}
-                      :uuid-counter 0
+                      :uuid-counter 30
                       :uuid-counter-type 0})
 
 (def constant-table (ref empty-constant-table))
@@ -266,7 +266,6 @@
                 (alter ct update-in [:uuid-counter] inc)
                 uuid)))))
 
-
 (defn log [type msg]
   (println type "   : " msg))
 
@@ -318,8 +317,11 @@
                             (put-as-global-name! name :type-name constant-table)
                             {name
                              (-> field
-                                 (assoc :offset i)
-                                 (dissoc :atom :env :form :tag :o-tag :op :local :mutable))}))
+                                 (assoc  :offset i
+                                   :tag  (.getName (get field :tag))
+                                   :o-tag (.getName (get field :o-tag))
+                                   :mutable (if (:mutable field) true false))
+                                 (dissoc :tag :o-tag :atom :env :form :op :local))}))
                         fields)))
 
 (defn clean-protocol [protocol]
