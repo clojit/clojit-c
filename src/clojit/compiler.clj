@@ -240,7 +240,7 @@
       (dosync
        (alter bcf/constant-table
               assoc-in
-              [:types type-name :interfaces (:interface method) (keyword (:name method)) :loop-id]
+              [:types type-name :protocols (:interface method) (keyword (:name method)) :loop-id]
               (:loop-id method)))
 
       (bcf/put-in-function-table (:loop-id method) (:bc method)))
@@ -543,28 +543,39 @@
   (into {} (filter (comp not nil?)
                   (map (fn [[type-name type-data]]
                          (first (filter (comp not nil?)
-                                        (map (fn [[interface-name interface-data]]
+                                        (map (fn [[protocol-name protocol-data]]
                                                (let [func (first (filter (comp not nil?)
                                                                          (map (fn [[method-name method-data]]
                                                                                 (when-not (or (= :nr method-name)
                                                                                               (= :name method-name))
-                                                                                  (when (= method-nr
-                                                                                           (:protocol-method-nr method-data))
-                                                                                    (:func method-data)))) interface-data)))]
+                                                                                        (when (= method-nr
+                                                                                                 (:protocol-method-nr method-data))
+                                                                                          (:func method-data))))
+                                                                              protocol-data)))]
                                                  (when func
                                                    {(:nr type-data) func} )))
-                                             (:interfaces type-data)))))
+                                             (:protocols type-data)))))
                        (:types ct)))))
 
 (defn generate-vtable [ct]
-  (doall (into {} (mapv (fn [[protocol-name protocol-data]]
-                          (doall (into {} (map (fn [[protocol-method-name method-data]]
-                                                 (when-not (= protocol-method-name
-                                                              :nr)
-                                                   (let [method-nr (:protocol-method-nr method-data)]
-                                                     {method-nr (find-implementation method-nr ct)})))
-                                               protocol-data))))
-                        (:protocol ct)))))
+  (into {} (mapv (fn [[protocol-name protocol-data]]
+                   (into {} (map (fn [[protocol-method-name method-data]]
+                                   (when-not (= protocol-method-name
+                                                :nr)
+                                     (let [method-nr (:protocol-method-nr method-data)]
+                                       {method-nr (find-implementation method-nr ct)})))
+                                 protocol-data)))
+                 (:protocols ct))))
+
+
+(defn creat-type-vector [ct]
+  (let [type-map (into {} (map (fn [t]
+                                 {(:nr t)
+                                  (-> t
+                                      (dissoc :nr)
+                                      (assoc :fields (vec (vals (:fields t)))))})
+                               (vals (:types ct))))]
+    (mapv #(or (get type-map %)) (range (count type-map)))))
 
 ;; ----------------------- main compile ----------------------------
 
@@ -575,38 +586,37 @@
   (let [node  (anal/asteval clj-form)
         bc (c0 node)
         bc-exit (conj bc {:op :EXIT :a 0 :d nil})
-        constant-table (bcf/put-in-function-table "0" bc-exit)
+        ct1 (bcf/put-in-function-table "0" bc-exit)
 
-        resolved-bc-list (bcp/resolve-jump-offset (:CFUNC constant-table))
-        constant-table (bcf/put-in-constant-table :bytecode resolved-bc-list)
+        resolved-bc-list (bcp/resolve-jump-offset (:CFUNC @bcf/constant-table))
+        ct2 (bcf/put-in-constant-table :bytecode resolved-bc-list)
 
         resolved-type-methods (bcp/resolve-type-method @bcf/constant-table)
-        constant-table (bcf/put-in-constant-table :types resolved-type-methods)
+        ct3 (bcf/put-in-constant-table :types resolved-type-methods)
 
-        constant-table (bcf/put-in-constant-table
-                        :fn-bc-count
-                        (into {} (map (fn [[k v]]
-                                        {k (count v)})
-                                      (:CFUNC constant-table))))
-        vtable (generate-vtable constant-table)
-        constant-table (bcf/put-in-constant-table :vtable vtable)]
+        vtable (generate-vtable @bcf/constant-table)
+        ct4 (bcf/put-in-constant-table :vtable vtable)
 
-    (println "Visualiser Index: " (let [bc-server-post (v/bc-post constant-table)]
+        ct5 (bcf/put-in-constant-table :types (creat-type-vector @bcf/constant-table))
+
+
+        ]
+    (println "Visualiser Index: " (let [bc-server-post (v/bc-post @bcf/constant-table)]
                                     (when bc-server-post
                                       (:index (:body bc-server-post)))))
     (println "------------------")
     #_(println "Bytecode without jump resolution")
-    #_(by-line-print (unresolved-bytecode constant-table))
+    #_(by-line-print (unresolved-bytecode @bcf/constant-table))
     (println "Types")
     (println "------------------")
-    (apply println (bcprint/print-types constant-table))
+    (apply println (bcprint/print-types @bcf/constant-table))
     (println "Const View")
-    (p/pprint (dissoc constant-table :fn-bc-count :CFUNC :types :protocol :bytecode :top-level-name :uuid-counter))
+    (p/pprint (dissoc @bcf/constant-table :fn-bc-count :CFUNC #_:types #_:protocols :bytecode :top-level-name :uuid-counter :uuid-counter-type))
     (println "------------------")
     (println "Bytecode with jump resolution")
-    (bcprint/by-line-print (bcprint/resolved-bytecode-format constant-table))
+    (bcprint/by-line-print (bcprint/resolved-bytecode-format @bcf/constant-table))
     (bcf/set-empty)
-    constant-table))
+    @bcf/constant-table))
 
 (defn cleanup [bc]
   (let [bc-c1 (dissoc bc :CFUNC :fn-bc-count)

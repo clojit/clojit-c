@@ -121,10 +121,8 @@
 
 
 (defn print-types [ct]
-  (map (fn [[k v]]
-         (str "Name: " k " Nr: " (:nr v)
-              "\nProtocols:\n " (apply str (interpose "\n " (keys (:interfaces v)))) "\n------------------\n"))
+  (map-indexed (fn [i t]
+         (str "Name: " (:name t) " Nr: " i
+              "\nProtocols:\n " (apply str (interpose "\n " (keys (:protocols t)))) "\n------------------\n"))
        (:types ct)))
-
-
 

@@ -107,12 +107,12 @@
             (fn [[type-name type-data]]
               {type-name
                (merge
-                (dissoc type-data :interfaces)
-                {:interfaces
+                (dissoc type-data :protocols)
+                {:protocols
                  (into {}
                        (map (fn [[interface-name interface-data]]
                               {interface-name (resolve-interface interface-data (:bytecode ct))})
-                            (:interfaces type-data)))})})
+                            (:protocols type-data)))})})
             (:types ct))))
 
 #_(-> (resolve-type-method {:bytecode [{:i 5 :landing "55232"}

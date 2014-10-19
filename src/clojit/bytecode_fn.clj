@@ -15,8 +15,9 @@
                       :CFLOAT []
                       :CFUNC {}
                       :types {}
-                      :protocol {}
-                      :uuid-counter 0})
+                      :protocols {}
+                      :uuid-counter 0
+                      :uuid-counter-type 0})
 
 (def constant-table (ref empty-constant-table))
 
@@ -252,6 +253,20 @@
   (dosync
    (alter constant-table assoc k v)))
 
+
+(defn get-and-inc-uuid-counter!
+  ([ct] (get-and-inc-uuid-counter! ct :default))
+  ([ct type]
+   (dosync
+    (cond
+     (= type :type) (let [uuid (:uuid-counter-type @ct)]
+                      (alter ct update-in [:uuid-counter-type] inc)
+                      uuid)
+     :default (let [uuid (:uuid-counter @ct)]
+                (alter ct update-in [:uuid-counter] inc)
+                uuid)))))
+
+
 (defn log [type msg]
   (println type "   : " msg))
 
@@ -268,18 +283,15 @@
                                                 :name name}))))
 
 (defn clean-protcol-method-data [pmd]
-  (let [protocol (-> pmd
-                     (dissoc :line :column :end-line :end-column :doc)
-                     (assoc :protocol-method-nr (get-in @constant-table [:uuid-counter])
-                            :arglists (first (:arglists pmd))))]
-    (alter constant-table update-in [:uuid-counter] inc)
-    protocol))
+  (-> pmd
+      (dissoc :line :column :end-line :end-column :doc :arglists)
+      (assoc :protocol-method-nr (get-and-inc-uuid-counter! constant-table)
+             #_:arglists #_(first (:arglists pmd)))))
 
 (defn add-protocol [protocol-name protocol-methods]
   (dosync
-   (let [protocol-counter (:uuid-counter @constant-table)
-         protocol-name (.getName protocol-name)
-         protocol-name-nonqualified (last (str/split protocol-name  #"\."))
+   (let [protocol-name-str (.getName protocol-name)
+         protocol-name-nonqualified (last (str/split protocol-name-str #"\."))
          protocol (into {} (map (fn [[name data]]
                                   (put-as-global-name! name :protocol-method-name constant-table)
                                   {name (clean-protcol-method-data data)})
@@ -287,45 +299,53 @@
      (put-as-global-name! protocol-name-nonqualified :protocol-name constant-table)
      (alter constant-table
             assoc-in
-            [:protocol protocol-name]
-            (assoc protocol :nr protocol-counter))
-     (alter constant-table update-in [:uuid-counter] inc))))
+            [:protocols protocol-name-str]
+            (assoc protocol :nr (get-and-inc-uuid-counter! constant-table))))))
 
 (defn get-protocol [name ct]
-  (-> ct
-      :protocol
-      (get name)))
+  (get (:protocols ct) name))
 
-(defn add-type [type-name t]
+(defn clean-type-data [type-data]
+  (-> type-data
+      (assoc
+        :nr (get-and-inc-uuid-counter! constant-table)
+        :class-name (.getName (:class-name type-data)))
+      (dissoc :env :children :protocol-callsites :keyword-callsites :methods :constants :doc)))
+
+(defn clean-fields [fields]
+  (into {} (map-indexed (fn [i field]
+                          (let [name (str (:name field))]
+                            (put-as-global-name! name :type-name constant-table)
+                            {name
+                             (-> field
+                                 (assoc :offset i)
+                                 (dissoc :atom :env :form :tag :o-tag :op :local :mutable))}))
+                        fields)))
+
+(defn clean-protocol [protocol]
+  (into {} (map (fn [protocol]
+                  (let [name (.getName protocol)]
+                    (if (re-find #"IType" name)
+                      {}
+                      {name
+                       (assoc
+                         (get-protocol name @constant-table)
+                         :name name)})))
+                protocol)))
+
+(defn add-type [type-name type-data]
   (dosync
-   (let [type-counter (:uuid-counter  @constant-table)
-         interface (into {} (map (fn [interface]
-                                   (let [name (.getName interface)]
-                                     (if (re-find #"IType" name)
-                                       {}
-                                       {name
-                                        (assoc
-                                          (get-protocol name @constant-table)
-                                          :name name)})))
-                                 (:interfaces t)))
-         classname (.getName (:class-name t))
-         t (-> t
-               (assoc :nr type-counter
-                      :interfaces interface
-                      :class-name classname)
-               (dissoc :env :children :protocol-callsites :keyword-callsites :methods :constants :doc))
-         fields (:fields t)
-         clean-fields (into {} (map-indexed (fn [i field]
-                                              (put-as-global-name! (str (:name field)) :type-name constant-table)
-                                              {(str (:name field))
-                                               (-> field
-                                                   (assoc :offset i
-                                                          #_:o-tag #_(.getName (:o-tag field))
-                                                          #_:tag   #_(.getName (:tag field))
-                                                          )
-                                                   (dissoc :atom :env :form :tag :o-tag :op :local :mutable))})
-                                            fields))
-         t (assoc t :fields clean-fields)]
-     (put-as-global-name! (str (:name t)) :type-name constant-table)
-     (alter constant-table assoc-in [:types type-name] t)
-     (alter constant-table update-in [:uuid-counter] inc))))
+   (let [fields (clean-fields (:fields type-data))]
+     (put-as-global-name! (str (:name type-data)) :type-name constant-table)
+     (alter constant-table
+            assoc-in
+            [:types type-name]
+            (-> type-data
+                clean-type-data
+                (assoc
+                  :nr (get-and-inc-uuid-counter! constant-table :type)
+                  :protocols (clean-protocol (:interfaces type-data))
+                  :class-name (.getName (:class-name type-data))
+                  :fields fields
+                  :size (count (keys fields)))
+                (dissoc :env :interfaces :children :protocol-callsites :keyword-callsites :methods :constants :doc))))))
