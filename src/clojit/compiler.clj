@@ -11,6 +11,7 @@
     [clojure.data.json :as json]
     [clojure.tools.reader.edn :as edn]
     [clojure.tools.trace :as t]
+    [clojure.string :as str]
     [schema.macros :as sm]))
 
 (declare ccompile)
@@ -267,7 +268,7 @@
                                               (mapcat :bc all-fn-bc)])))
     (if generate-uclo
       [(bcf/FNEW slot fn-id)
-       (bcf/UCLO 0 (dec slot))]
+       (bcf/UCLO 2 (dec slot))]
       [(bcf/FNEW slot fn-id)])))
 
 #_(if (and (contains? full-env :parent)  ;; has stuff in it
@@ -344,7 +345,6 @@
 
 (defmethod ccompile :local [node slot env]
   (let [source (e/get-env env (str (:name node)))]
-
     (cond
      (:freevar source) [(bcf/GETFREEVAR slot (:freevar source) (str (:name node)))]
      (:this source) [(bcf/GETFIELD slot (:this source) (:offset source))]
@@ -608,6 +608,15 @@
 
         ct6 (bcf/put-in-constant-table :protocols protocols)
 
+        clean-bc (bcp/remove-landings (:bytecode @bcf/constant-table))
+        ct8 (bcf/put-in-constant-table :bytecode clean-bc)
+
+        ct7 (bcf/put-in-constant-table
+             :fn-bc-count
+             (into {} (map (fn [[k v]]
+                             {k (count v)})
+                           (:CFUNC @bcf/constant-table))))
+
         ct @bcf/constant-table]
 
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post @bcf/constant-table)]
@@ -620,12 +629,11 @@
     (println "------------------")
     (apply println (bcprint/print-types @bcf/constant-table))
     (println "Const View")
-    (p/pprint (dissoc @bcf/constant-table :fn-bc-count :CFUNC #_:types #_:protocols :bytecode :top-level-name :uuid-counter :uuid-counter-type))
+    (p/pprint (dissoc @bcf/constant-table :fn-bc-count :CFUNC :types :protocols :bytecode :top-level-name :uuid-counter :uuid-counter-type :uuid-counter-type))
     (println "------------------")
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format @bcf/constant-table))
     (bcf/set-empty)
-
     ct))
 
 (defn cleanup [bc]
@@ -635,21 +643,24 @@
                          (fn [bc-list] (map
                                         #(dissoc % :i :const :jt-nr :fnk)
                                         bc-list)))]
-    (dissoc bc-c2 :fn-bc-count :CFUNC :uuid-counter :top-level-name)))
+    (dissoc bc-c2 :fn-bc-count :CFUNC :uuid-counter :top-level-name :uuid-counter-type :protocols )))
 
 ;; ----------------------- file output --------------------------------
 
+(defn clj-file-name [clj-infile]
+  (apply str [(first (butlast (str/split clj-infile #"\."))) ".json"]))
+
 (sm/defn gen-file-output
-  [bc-output :- bcv/Bytecode-Output-Data]
+  [bc-output :- bcv/Bytecode-Output-Data output-file-name]
   (let [bytecode-output-json (with-out-str (json/pprint bc-output))]
-    (spit "clojure-bc.json" bytecode-output-json)))
+    (spit output-file-name bytecode-output-json)))
 
 (defn compiler-entery [clj-infile]
   (let [clj-str (slurp clj-infile)
         clj-form-file (edn/read-string clj-str)
         clj-bc (c clj-form-file)
         clj-clean-bc (cleanup clj-bc)]
-    (gen-file-output clj-clean-bc)))
+    (gen-file-output clj-clean-bc (clj-file-name clj-infile))))
 
 ;; ------------------------ protocols ----------------------
 

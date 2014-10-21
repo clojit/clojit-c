@@ -20,12 +20,11 @@
                             {}))
                         bc-list)))
 
-(defn remove-landings [bc-list landings]
+(defn move-landings [bc-list landings]
   (reduce (fn [bc-list [id index]]
             (-> bc-list
                 (assoc-in [index :landing] (get-in bc-list [index :d]))
-                (assoc-in [index :d] nil)
-                ))
+                (assoc-in [index :d] nil)))
           bc-list
           landings))
 
@@ -70,15 +69,12 @@
                   ) data)
 
            ) protocols)
-
-
-    ))
+))
 
 #_(defn vfn-add-protocol [bc-list]
   (mapv (fn [bc] (if (= :VFNEW (:op bc))
                    (assoc bc :name  (get-method-name (:d bc)))
                    bc)) bc-list))
-
 
 (defn resolve-jump-offset [fn-map]
   (let [bc-list (vec (apply concat (vals fn-map)))
@@ -86,19 +82,29 @@
         jumps (get-jumps bc-list [:JUMPT :JUMPF :JUMP :FNEW])]
     (-> bc-list
         fn-add-key
-        (remove-landings landings)
+        (move-landings landings)
         (resolve-jumps landings jumps)
         take-out-nops)))
+
+(defn remove-landings [bc-list]
+  (println "remove-landings")
+  (reduce (fn [acc bc]
+            (conj acc (dissoc bc :landing)))
+          []
+          bc-list))
+
 
 (defn resolve-interface [interface-data bclist]
   (into {} (map (fn [[key data]]
                   (if (or (= key :nr)
                           (= key :name))
                     {key data}
-                    {key (dissoc (assoc data :func
+                    {key (-> data
+                             (assoc :func
                                    (first (filter (comp not nil?) (map (fn [bc] (when (= (:landing bc) (:loop-id data))
                                                                                   (:i bc)))
-                                                                       bclist)))) :loop-id)}))
+                                                                       bclist))))
+                             (dissoc :loop-id :landing))}))
                 interface-data)))
 
 
@@ -114,14 +120,3 @@
                               {interface-name (resolve-interface interface-data (:bytecode ct))})
                             (:protocols type-data)))})})
             (:types ct))))
-
-#_(-> (resolve-type-method {:bytecode [{:i 5 :landing "55232"}
-                                     {:i 6 :landing "65353"}]
-                          :types {"Person" {:otherstuff 5
-                                            :interfaces {"test" {:nr 10 :name "test" :blabla {:loop-id "55232"}}
-                                                         "test2" {:nr 11 :name "test2" :blabla2 {:loop-id "65353"}}}}
-                                  "Person2" {:otherstuff 5
-                                            :interfaces {"test" {:nr 10 :name "test" :blabla {:loop-id "55232"}}
-                                                         "test2" {:nr 11 :name "test2" :blabla2 {:loop-id "65353"}}}}}
-                          })
-    p/pprint)

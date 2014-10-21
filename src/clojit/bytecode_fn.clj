@@ -190,8 +190,7 @@
 (defn GETFREEVAR [dst idx name]
   [{:op :GETFREEVAR
     :a dst
-    :d idx
-    :name name}])
+    :d idx}])
 
 (defn UCLO [slot upval]
   [{:op :UCLO
