@@ -448,7 +448,7 @@
        (bcf/MOV slot after-binding-slot))
      (if (> (inc slot) after-binding-slot)
        []
-       (bcf/DROP (inc slot) after-binding-slot))]))
+       [] #_(bcf/DROP (inc slot) after-binding-slot))]))
 
 (defmethod ccompile :loop [node slot env]
   (let [bindings (:bindings node)
@@ -464,7 +464,8 @@
      (bcf/LOOP loop-id)
      (ccompile (:body node) after-bindings-slot merge-env)
      (bcf/MOV slot after-bindings-slot)
-     (bcf/DROP (inc slot) after-bindings-slot)]))
+     #_(bcf/DROP (inc slot) after-bindings-slot)
+     (bcf/TRANC (inc slot))]))
 
 (defmethod ccompile :recur [node slot env]
   (let [exprs (:exprs node)

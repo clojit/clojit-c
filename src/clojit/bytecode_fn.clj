@@ -202,6 +202,11 @@
     :a start-var
     :d end-var}])
 
+(defn TRANC [start-var]
+  [{:op :TRANC
+    :a nil
+    :d start-var}])
+
 (defn ALLOC [dst typ]
   [{:op :ALLOC
     :a dst
