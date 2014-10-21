@@ -620,6 +620,11 @@
 
         ct @bcf/constant-table]
 
+
+    (println "------------------")
+    (p/pprint clj-form)
+    (println "------------------")
+
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post @bcf/constant-table)]
                                     (when bc-server-post
                                       (:index (:body bc-server-post)))))
