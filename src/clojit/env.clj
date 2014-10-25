@@ -7,6 +7,9 @@
     [schema.macros :as sm]
     [clojit.analyzer :as anal]))
 
+(defmacro dbg [x] `(let [x# ~x] (do (println '~x "=") (p/pprint x#)) x#))
+
+
 (def env
   "A schema for validation of the env"
   {(s/maybe s/Str) {(s/required-key :slot) s/Int
@@ -32,17 +35,22 @@
 (sm/defn ^:always-validate creat-full-env :- env
   [normal-env :- env local-env :- local-env]
 
-  (let [parent-free-env (dissoc normal-env :parent)
-        parent-env (:parent normal-env)
-        new-freevar-nr (if-not parent-env
-                      0
-                      (inc (apply max
-                                  (map :freevar
-                                       (vals parent-env)))))
-        freevar-env (into {} (map (fn [[var-name slot] i]
-                                       [var-name (assoc slot :freevar i)])
-                                      parent-free-env
-                                      (drop new-freevar-nr (range))))]
+  (let [parent-free-env  (dissoc normal-env :parent)
+        parent-env  (:parent normal-env)
+        new-freevar-nr  (inc (apply max
+                                    (conj (mapv (fn [a]
+                                                    (if (number? (:freevar a))
+                                                      (:freevar a)
+                                                      (- 1)))
+                                                  (vals parent-env))
+                                          (- 1))))
+        freevar-env  (into {} (map (fn [[var-name slot] i]
+                                          (println "new freevar " i)
+                                          [var-name (assoc slot :freevar i)])
+                                        parent-free-env
+                                        (drop new-freevar-nr (range))))]
+
+
     (merge local-env
            (cond
             (and (empty? freevar-env) (nil? parent-env))  {}
