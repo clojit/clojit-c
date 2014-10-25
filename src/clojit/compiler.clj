@@ -16,7 +16,9 @@
 
 (declare ccompile)
 
-(defmacro dbg [x] `(let [x# ~x] (println '~x "=" x#) x#))
+#_(defmacro dbg [x] `(let [x# ~x] (println '~x "=" x#) x#))
+
+(defmacro dbg [x] `(let [x# ~x] (do (println '~x "=") (p/pprint x#)) x#))
 
 (defn binop-reduce
   [slot env op acc arg]
