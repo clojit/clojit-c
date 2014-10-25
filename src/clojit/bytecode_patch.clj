@@ -87,7 +87,6 @@
         take-out-nops)))
 
 (defn remove-landings [bc-list]
-  (println "remove-landings")
   (reduce (fn [acc bc]
             (conj acc (dissoc bc :landing)))
           []

@@ -352,12 +352,6 @@
      (:this source) [(bcf/GETFIELD slot (:this source) (:offset source))]
      :default [(bcf/MOV slot (:slot source))])))
 
-(defmethod ccompile :maybe-class [node slot env]
-  (let [source (e/get-env env (str (:class node))) ]
-    (if (:freevar source)
-      [(bcf/GETFREEVAR slot (:freevar source) (str (:class node)))]
-      [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:class node))))])))
-
 (defn is-macroexpand-of-defprotocol [node]
   (= (-> node
          :raw-forms
@@ -411,10 +405,28 @@
               (:protocol-method-nr (get data (keyword var-sym))))
             (:protocols @bcf/constant-table)))))
 
+
+;; Checkout out when maybeclass is possible to make sure it covers all possible
+(defmethod ccompile :maybe-class [node slot env]
+  (let [source (e/get-env env (str (:class node))) ]
+    (if (:freevar source)
+      [(bcf/GETFREEVAR slot (:freevar source) (str (:class node)))]
+      [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:class node))))])))
+
 (defmethod ccompile :var [node slot env]
-  (if (bcf/find-constant-index :CSTR (str (:form node)))
-    [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))]
-    [(bcf/VFNEW slot (find-protocol-method-nr (:form node)))]))
+  (let [name (str (:form node))
+        toplvl (get (:top-level-name @bcf/constant-table) (str (:form node)))
+        toplvl-type (:type toplvl)]
+    (condp = toplvl-type
+     :def [(bcf/NSGETS slot (bcf/find-constant-index :CSTR name))]
+     :protocol-method-name [(bcf/VFNEW slot (find-protocol-method-nr (:form node)))]
+      [(bcf/NSGETS slot (do
+                          (bcf/put-const-in-constant-table :CSTR name)
+                          (bcf/find-constant-index :CSTR name)))])))
+
+    #_(comment   (if (bcf/find-constant-index :CSTR (str (:form node)))
+                   [(bcf/NSGETS slot (bcf/find-constant-index :CSTR (str (:form node))))]
+                   [(bcf/VFNEW slot (find-protocol-method-nr (:form node)))]))
 
 (defmethod ccompile :import [node slot env]
   [])
