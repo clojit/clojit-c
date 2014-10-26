@@ -408,6 +408,7 @@
 
 ;; Checkout out when maybeclass is possible to make sure it covers all possible
 (defmethod ccompile :maybe-class [node slot env]
+  (println "maybe class: " (str (:class node)))
   (let [source (e/get-env env (str (:class node))) ]
     (if (:freevar source)
       [(bcf/GETFREEVAR slot (:freevar source) (str (:class node)))]

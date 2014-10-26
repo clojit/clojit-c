@@ -19,10 +19,10 @@
         REST2
         (PATCH [self] 101))
 
-  (+
-   (PATCH (->API2 5 5))       ;; 101
-   (GET (->API 99))          ;; 99
-   (PUT (->API 100) 10 20 20)) ;; 50
+  (println (+
+            (PATCH (->API2 5 5))       ;; 101
+            (GET (->API 99))          ;; 99
+            (PUT (->API 100) 10 20 20))) ;; 50
 
        )
 

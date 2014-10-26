@@ -1,0 +1,13 @@
+{"bytecode":
+ [{"op":"FNEW", "a":1, "d":8}, {"op":"CBOOL", "a":2, "d":1},
+  {"op":"CFLOAT", "a":3, "d":0}, {"op":"CSHORT", "a":4, "d":1},
+  {"op":"CSTR", "a":5, "d":0}, {"op":"CKEY", "a":6, "d":0},
+  {"op":"CALL", "a":0, "d":6}, {"op":"EXIT", "d":null, "a":0},
+  {"op":"FUNCF", "a":5, "d":null}, {"op":"MOV", "a":7, "d":2},
+  {"op":"RET", "a":7, "d":null}],
+ "CSTR":["test"],
+ "vtable":{},
+ "CFLOAT":[1.0],
+ "types":[],
+ "CKEY":["test"],
+ "CINT":[]}

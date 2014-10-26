@@ -1,4 +1,4 @@
 (do (defn testfn [a]
       (fn [b]
         (+ a b)))
-  ((testfn 10) 5))
+  (println ((testfn 10) 5)))
