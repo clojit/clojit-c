@@ -175,11 +175,14 @@
 (defmulti ccompile (fn [node slot env] (:op node)))
 
 (defmethod ccompile :def [node slot env]
-  (let [name (str (:name node))]
+  (let [name (str (:name node))
+        dynamic? (-> node :meta :val :dynamic)]
     (bcf/put-as-global-name! name :def bcf/constant-table)
     (bcf/put-const-in-constant-table :CSTR name)
     [(ccompile (:init node) slot env)
-     (bcf/NSSETS slot (bcf/find-constant-index :CSTR name))]))
+     (bcf/NSSETS slot
+                 (bcf/find-constant-index :CSTR name)
+                 (if dynamic? :dynamic :normal))]))
 
 (defmethod ccompile :invoke [node slot env]
   [(invoke node slot env)])
