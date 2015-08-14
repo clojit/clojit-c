@@ -1,0 +1,30 @@
+{"bytecode":
+ [{"op":"FNEW", "a":0, "d":11}, {"op":"NSSETS", "a":0, "b":0, "c":0},
+  {"op":"CTYPE", "a":0, "d":0}, {"op":"NSGETS", "a":1, "d":1},
+  {"op":"VFNEW", "a":3, "d":30}, {"op":"NSGETS", "a":5, "d":0},
+  {"op":"CSHORT", "a":6, "d":3}, {"op":"CALL", "a":4, "d":2},
+  {"op":"CALL", "a":2, "d":1}, {"op":"CALL", "a":0, "d":2},
+  {"op":"EXIT", "d":null, "a":0}, {"op":"FUNCF", "a":1, "d":null},
+  {"op":"CTYPE", "a":3, "d":0}, {"op":"ALLOC", "a":3, "d":3},
+  {"op":"MOV", "a":4, "d":2}, {"op":"SETFIELD", "a":3, "b":0, "c":4},
+  {"op":"RET", "a":3, "d":null}, {"op":"FUNCF", "a":1, "d":null},
+  {"op":"CSHORT", "a":4, "d":9}, {"op":"MOV", "a":5, "d":3},
+  {"op":"ADDVV", "a":4, "b":4, "c":5}, {"op":"RET", "a":4, "d":null},
+  {"op":"FUNCF", "a":0, "d":null}, {"op":"CSHORT", "a":3, "d":5},
+  {"op":"RET", "a":3, "d":null}],
+ "CSTR":["->Bar", "println"],
+ "vtable":{"30":{"0":17}},
+ "CFLOAT":[],
+ "types":
+ [{"protocols":
+   {"user.IBar":
+    {"name":"user.IBar",
+     "nr":31,
+     "total":{"func":17, "protocol-method-nr":30, "name":"total"}}},
+   "name":"Bar",
+   "fields":[{"offset":0, "name":"a", "mutable":false}],
+   "size":1,
+   "nr":0,
+   "class-name":"user.Bar"}],
+ "CKEY":[],
+ "CINT":[]}

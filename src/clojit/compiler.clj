@@ -12,7 +12,8 @@
     [clojure.tools.reader.edn :as edn]
     [clojure.tools.trace :as t]
     [clojure.string :as str]
-    [schema.macros :as sm]))
+    [schema.macros :as sm]
+    [clojurewerkz.buffy.core :as buffy]))
 
 (declare ccompile)
 
@@ -606,7 +607,7 @@
 (defn c0 [node]
   (vec (flatten (ccompile node 0 {}))))
 
-(defn c [clj-form]
+(defn c "Main Compiler Funcion" [clj-form]
   (let [node  (anal/asteval clj-form)
         bc (c0 node)
         bc-exit (conj bc {:op :EXIT :a 0 :d nil})
@@ -637,12 +638,9 @@
                            (:CFUNC @bcf/constant-table))))
 
         ct @bcf/constant-table]
-
-
     (println "------------------")
     (p/pprint clj-form)
     (println "------------------")
-
     (println "Visualiser Index: " (let [bc-server-post (v/bc-post @bcf/constant-table)]
                                     (when bc-server-post
                                       (:index (:body bc-server-post)))))
@@ -655,10 +653,29 @@
     (println "Const View")
     (p/pprint (dissoc @bcf/constant-table :fn-bc-count :CFUNC :types :protocols :bytecode :top-level-name :uuid-counter :uuid-counter-type :uuid-counter-type))
     (println "------------------")
+    (println "Constant Table rest: ")
+    (p/pprint (dissoc @bcf/constant-table :CSTR :vtable :CFLOAT :CKEY :CINT))
+    (println "------------------")
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format @bcf/constant-table))
     (bcf/set-empty)
     ct))
+
+
+(-> '(deftype Bar [a])
+    c)
+
+
+#_(-> '(do
+       (defprotocol IBar
+         (total [self]
+                [self a]))
+       #_(deftype Bar [a]
+         IBar
+         (total [self] 5)
+         (total [self a] (+ 5 a)))
+       (total (->Bar 1)))
+    c)
 
 (defn cleanup [bc]
   (let [bc-c1 (dissoc bc :CFUNC :fn-bc-count)
@@ -668,6 +685,7 @@
                                         #(dissoc % :i :const :jt-nr :fnk)
                                         bc-list)))]
     (dissoc bc-c2 :fn-bc-count :CFUNC :uuid-counter :top-level-name :uuid-counter-type :protocols )))
+
 
 ;; ----------------------- file output --------------------------------
 
@@ -688,4 +706,10 @@
 
 ;; ------------------------ protocols ----------------------
 
+
+#_(p/pprint (-> '(do
+                 (def ^:dynamic a 1)
+                 (binding [a 16] a))
+              anal/ast
+              :ret))
 

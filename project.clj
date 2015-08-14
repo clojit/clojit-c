@@ -9,5 +9,6 @@
                  [org.clojure/tools.trace "0.7.8"]
 		             [prismatic/schema "0.2.6"]
                  [clj-http "0.9.0"]
-                 [org.clojure/tools.analyzer.jvm "0.6.3"]]
+                 [org.clojure/tools.analyzer.jvm "0.6.3"]
+                 [clojurewerkz/buffy "1.0.1"]]
   :main clojit.core)

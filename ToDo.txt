@@ -1,0 +1,33 @@
+ToDo:
+
+- Top level names must be tracked
+
+- extend-protocol
+
+- refiey
+
+- try/catch
+
+- set!
+
+- Callable Object
+
+- Im missing something about func calls, cant remember what
+    - varargs
+
+- deftype mutable
+
+- atoms
+
+- var deref
+
+- string/symbol/keyword work?
+
+- meta data
+
+----------------
+
+Placeholder for js fork
+
+- replace js and goog namespace
+
