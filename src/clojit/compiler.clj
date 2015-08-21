@@ -7,6 +7,7 @@
     [clojit.env :as e]
     [clojit.bytecode-patch :as bcp]
     [clojit.bytecode-print :as bcprint]
+    [clojit.dumb :as dumb]
     [clojure.pprint :as p]
     [clojure.data.json :as json]
     [clojure.tools.reader.edn :as edn]
@@ -20,6 +21,25 @@
 #_(defmacro dbg [x] `(let [x# ~x] (println '~x "=" x#) x#))
 
 (defmacro dbg [x] `(let [x# ~x] (do (println '~x "=") (p/pprint x#)) x#))
+
+(def all-op [:CSTR :CKEY :CINT :CFLOAT :CTYPE :CBOOL :CNIL :CSHORT
+             :NSSETS :NSGETS
+             :ADDVV :SUBVV :MULVV :DIVVV :POWVV
+             :ISLT :ISGE :ISLE :ISGT :ISNEQ
+             :MOV :NOT :NEG
+             :JUMP :JUMPF :JUMPT
+             :CALL :RET
+             :APPLY
+             :FNEW :VFNEW :GETFREEVAR :UCLO
+             :LOOP :BULKMOV
+             :NEWARRAY :GETARRAY :SETARRAY
+             :FUNCF :FUNCV
+             :ALLOC
+             :SETFIELD :GETFIELD
+             :BREAK :EXIT :DROP :TRANC])
+
+(def op-to-num-map (apply merge (map-indexed (fn [i b] {b i}) all-op)))
+
 
 (defn binop-reduce
   [slot env op acc arg]
@@ -658,24 +678,36 @@
     (println "------------------")
     (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format @bcf/constant-table))
+    (println "Buffer:" )
+    (dumb/dumb-buffer)
     (bcf/set-empty)
     ct))
 
-
-(-> '(deftype Bar [a])
+#_(-> '(do (defprotocol kill
+           ([]))
+         (deftype Bar [a])
+         (deftype Foo [a b c]))
     c)
 
+(bcf/set-empty)
+(->
+  '(do
+       (def global 384938.2)
+       (def global2 45435454)
 
-#_(-> '(do
        (defprotocol IBar
          (total [self]
                 [self a]))
-       #_(deftype Bar [a]
+       (deftype Bar [a]
          IBar
-         (total [self] 5)
-         (total [self a] (+ 5 a)))
+         (total [self] (do :keywordtest  global))
+
+         (total [self a] (+ global2 a)))
        (total (->Bar 1)))
     c)
+
+
+(bcf/set-empty)
 
 (defn cleanup [bc]
   (let [bc-c1 (dissoc bc :CFUNC :fn-bc-count)

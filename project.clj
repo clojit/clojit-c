@@ -10,5 +10,6 @@
 		             [prismatic/schema "0.2.6"]
                  [clj-http "0.9.0"]
                  [org.clojure/tools.analyzer.jvm "0.6.3"]
-                 [clojurewerkz/buffy "1.0.1"]]
+                 [clojurewerkz/buffy "1.0.1"]
+                 [gloss "0.2.5"] ]
   :main clojit.core)
