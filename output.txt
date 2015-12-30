@@ -1,0 +1,34 @@
+(:section-header config-map) =
+[{:section-id 0, :size 112}
+ {:section-id 256, :size 8}
+ {:section-id 512, :size 8}
+ {:section-id 768, :size 21}
+ {:section-id 1024, :size 12}
+ {:section-id 1280, :size 12}
+ {:section-id 1536, :size 4}]
+
+
+(:instr config-map) =
+[637534208 16973824 151191552 453181440 637599744 151257089
+ 335872003 168035588 453246976 637599744 67305472 671285251
+ 335806466 688063488 453181440 50331648 134217728 33554432
+ 134217729 486539273 134217730 67108864 503382046
+ 151191554 117702657 436338690 436207617 738197504]
+
+(:ints config-map) =
+[45435454]
+
+(:floats config-map) =
+[384938.2]
+
+(:strings config-map) =
+{:offsets (0 7 15), :off ("global " "global2 " "->Bar ")}
+
+(:keys config-map) =
+{:offsets (0 7 15), :off ("global " "global2 " "->Bar ")}
+
+(:vtable config-map) =
+[{:protocol 30, :type 0, :fn-jump-offset 4}]
+
+(:types config-map) =
+[{:type-id 0, :size 1}]

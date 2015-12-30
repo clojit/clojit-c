@@ -20,10 +20,10 @@
 
 (defn env-kick [node]
   (cond
-   (map? node) (let [env-less-node (dissoc node :namespaces :init)]
-                 (into {} (map (fn [[k v]] {k (env-kick v)}) env-less-node)))
-   (vector? node) (mapv env-kick node)
-   :default node))
+    (map? node) (let [env-less-node (dissoc node :namespaces :init)]
+                  (into {} (map (fn [[k v]] {k (env-kick v)}) env-less-node)))
+    (vector? node) (mapv env-kick node)
+    :default node))
 
 (defn dissoc-env [ast]
   (u/dissoc-env ast))

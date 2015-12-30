@@ -114,13 +114,13 @@
     :a a-slot
     :d d-slot}])
 
-(defn NSGETS [a-slot d-slot-str]
-  [{:op :NSGETS
+(defn NSGET [a-slot d-slot-str]
+  [{:op :NSGET
     :a a-slot
     :d d-slot-str}])
 
-(defn NSSETS [a-slot d-slot c-slot]
-  [{:op :NSSETS
+(defn NSSET [a-slot d-slot c-slot]
+  [{:op :NSSET
     :a a-slot
     :b d-slot
     :c (cond
