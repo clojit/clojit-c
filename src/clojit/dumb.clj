@@ -87,26 +87,44 @@
                             :size (:size %)) types)]
     {:lst lst :size (* 4 (count lst))}))
 
-(def abc-frame (compile-frame {:b :byte :c :byte :a :byte :op :byte}))
-(def ad-frame (compile-frame {:d :int16 :a :byte :op :byte}))
+(defn print-instr-num [instr-num]
+  (println (p/cl-format nil "~32,'0',B" instr-num)))
+
+(defn print-instr-detail [instr]
+  (println (if (:b instr)
+    (assoc instr
+      :iop (p/cl-format nil "~8,'0',B" (:iop instr))
+      :a (p/cl-format nil "~8,'0',B"  (:a instr))
+      :b (p/cl-format nil "~8,'0',B" (:b instr))
+      :c (p/cl-format nil "~8,'0',B" (:c instr) ))
+    (assoc instr
+      :iop (p/cl-format nil "~8,'0',B" (:iop instr))
+      :a (p/cl-format nil "~8,'0',B" (:a instr) )
+      :d (p/cl-format nil "~16,'0',B" (:d instr))))))
 
 (defn instruction-binary [instr]
-  (let [f (fn [k] {k (if (nil? (k instr)) 0 (k instr))})
-        e (if (:b instr)
-            (let [instr (assoc (apply merge (map f [:op :a :b :c])) :iop (op-to-num-map (:op instr)))]
-              (println instr)
-              (apply + [(bit-shift-left (:iop instr) 24)
-                        (bit-shift-left (:a instr) 16)
-                        (bit-shift-left (:c instr) 8)
-                        (:b instr)]))
-            (let [instr (assoc (apply merge (map f [:op :a :d])) :iop (op-to-num-map (:op instr)))]
-              (println instr)
-              (apply + [(bit-shift-left (:iop instr) 24)
-                        (bit-shift-left (:a instr) 16)
-                        (:d instr)])))]
-    e))
-
-#_(apply + [(:op t) (* (Math/pow 2 8) (:a t)) (* (Math/pow 2 16) (:d t))])
+  (let [f (fn [k] {k (if (nil? (k instr)) 0 (k instr))})]
+    (if (:b instr)
+      (let [instr (assoc (apply merge (map f [:op :a :b :c])) :iop (op-to-num-map (:op instr)))
+            instr-num (apply + [(bit-shift-left (:iop instr) 24)
+                                (bit-shift-left (:a instr) 16)
+                                (bit-shift-left (:c instr) 8)
+                                (:b instr)])]
+        #_(println instr)
+        #_(print-instr-detail instr)
+        #_(print-instr-num instr-num)
+        #_(println instr-num)
+        instr-num)
+      (let [instr (assoc (apply merge (map f [:op :a :d])) :iop (op-to-num-map (:op instr)))
+            instr-num (apply + [(bit-shift-left (:iop instr) 24)
+                                (bit-shift-left (:a instr) 16)
+                                (:d instr)])]
+        #_(println instr)
+        #_(print-instr-detail instr)
+        #_(print-instr-num instr-num)
+        #_(println instr-num)
+        instr-num
+        ))))
 
 (defn get-instr [table]
   (let [instrs (sort-by :i (:bytecode table))

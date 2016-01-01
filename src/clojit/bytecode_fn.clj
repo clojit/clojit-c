@@ -119,14 +119,14 @@
     :a a-slot
     :d d-slot-str}])
 
-(defn NSSET [a-slot d-slot c-slot]
+(defn NSSET [a-slot d-slot]
   [{:op :NSSET
-    :a a-slot
-    :b d-slot
-    :c (cond
-        (= c-slot :normal)  0
-        (= c-slot :dynamic) 1
-        :default 99999)}])
+    :a  a-slot
+    :d  d-slot}
+   #_(:c (cond
+           (= c-slot :normal) 0
+           (= c-slot :dynamic) 1
+           :default 99999))])
 
 (defn constant-table-bytecode [bytecode a-slot const]
   [{:op bytecode

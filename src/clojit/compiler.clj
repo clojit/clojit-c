@@ -187,7 +187,7 @@
     [(ccompile (:init node) slot env)
      (bcf/NSSET slot
                  (bcf/find-constant-index :CSTR name)
-                 (if dynamic? :dynamic :normal))]))
+                 #_(if dynamic? :dynamic :normal))]))
 
 (defmethod ccompile :invoke [node slot env]
   [(invoke node slot env)])
