@@ -1,7 +1,4 @@
 (do
-  (def global2 45435454.2)
-  (def global 999999.99)
-  (def gloabl3 :mykey)
-  (+ global2 global)
-
-)
+  (def global2 5)
+  (def global 84)
+  (+ global2 global))
