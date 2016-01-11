@@ -56,7 +56,7 @@
              :SETFIELD :GETFIELD
              :BREAK :EXIT :DROP :TRANC])
 
-(def op-to-num-map (apply merge (map-indexed (fn [i b] (println b ":" i) {b i}) all-op)))
+(def op-to-num-map (apply merge (map-indexed (fn [i b] {b i}) all-op)))
 
 (defn cljbc-format-by-map [config-map]
   (to-byte-buffer (contiguous (encode cljbc-format [(:section-header config-map)
@@ -82,9 +82,8 @@
 (defn get-types [table]
   (let [types (sort-by :nr (:types table))
         lst (map #(hash-map :def :uint16
-                            :val (first (encode (compile-frame :uint16) (:nr %)))
-                            :type-id (:nr %)
-                            :size (:size %)) types)]
+                                  :type-id (:nr %)
+                                  :size (:size %)) types)]
     {:lst lst :size (* 4 (count lst))}))
 
 (defn print-instr-num [instr-num]
@@ -186,8 +185,6 @@
 (def section-frame (compile-frame {:section-id :int32 :size :int32}))
 
 (defn dumb-buffer []
-  (println "dumb buffer")
-  (p/pprint @bcf/constant-table)
   (let [table @bcf/constant-table
         types (get-types table)
         types-vec-data (mapv #(dissoc % :val :def) (:lst types))
@@ -210,11 +207,23 @@
                                           {:data sectionhead
                                            :val  (first (encode section-frame sectionhead))})) sections)
           section-header-data (mapv #(:data (dissoc % :val)) section-header)]
-      (cljbc-format-by-map {:types          types-vec-data
+      (println "\n------------------")
+      (println "TYPES")
+      (println "------------------")
+      (p/pprint types-vec-data)
+      (println "------------------")
+
+      (println "\n------------------")
+      (println "VTABLE")
+      (println "------------------")
+      (p/pprint vtable-vec-data)
+      (println "------------------")
+
+      (cljbc-format-by-map {:types types-vec-data
                             :section-header section-header-data
-                            :instr          instr-vec-data
-                            :ints           ints-vec-data
-                            :floats         floats-vec-data
-                            :vtable         vtable-vec-data
-                            :strings        strings-vec-data
-                            :keys           keyys-vec-data}))))
+                            :instr instr-vec-data
+                            :ints ints-vec-data
+                            :floats floats-vec-data
+                            :vtable vtable-vec-data
+                            :strings strings-vec-data
+                            :keys keyys-vec-data}))))

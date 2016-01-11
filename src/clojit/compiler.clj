@@ -23,8 +23,6 @@
 
 (defmacro dbg [x] `(let [x# ~x] (do (println '~x "=") (p/pprint x#)) x#))
 
-
-
 (defn binop-reduce
   [slot env op acc arg]
   (let [arg-slot (inc slot)
@@ -642,8 +640,6 @@
                             (:CFUNC @bcf/constant-table))))
 
         ct @bcf/constant-table]
-    (println "------------------")
-    (p/pprint clj-form)
     #_(println "------------------")
     #_(println "Visualiser Index: " (let [bc-server-post (v/bc-post @bcf/constant-table)]
                                     (when bc-server-post
@@ -654,16 +650,16 @@
     (println "Types")
     (println "------------------")
     (apply println (bcprint/print-types @bcf/constant-table))
-    (println "Const View")
+    (println "------------------")
+    (println "CONSTANT TABLE")
+    (println "------------------")
     (p/pprint (dissoc @bcf/constant-table :fn-bc-count :CFUNC :types :protocols :bytecode :top-level-name :uuid-counter :uuid-counter-type :uuid-counter-type))
+    (println "------------------\n\n")
     (println "------------------")
-    (println "Constant Table rest: ")
-    (p/pprint (dissoc @bcf/constant-table :CSTR :vtable :CFLOAT :CKEY :CINT))
+    (println "BYTECODE")
     (println "------------------")
-    (println "Bytecode with jump resolution")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format @bcf/constant-table))
-
-    (println "Buffer: ")
+    (println "------------------")
     (let [newfile (File. filename)
           b (dumb/dumb-buffer)
           filechannel (.getChannel (FileOutputStream. newfile false))]

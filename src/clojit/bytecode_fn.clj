@@ -351,11 +351,11 @@
             assoc-in
             [:types type-name]
             (-> type-data
-                clean-type-data
-                (assoc
-                  :nr (get-and-inc-uuid-counter! constant-table :type)
-                  :protocols (clean-protocol (:interfaces type-data))
-                  :class-name (.getName (:class-name type-data))
-                  :fields fields
-                  :size (count (keys fields)))
-                (dissoc :env :interfaces :children :protocol-callsites :keyword-callsites :methods :constants :doc))))))
+                      clean-type-data
+                      (assoc
+                        :nr (get-and-inc-uuid-counter! constant-table :type)
+                        :protocols (clean-protocol (:interfaces type-data))
+                        :class-name (.getName (:class-name type-data))
+                        :fields fields
+                        :size (count (keys fields)))
+                      (dissoc :env :interfaces :children :protocol-callsites :keyword-callsites :methods :constants :doc))))))
