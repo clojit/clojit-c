@@ -97,12 +97,19 @@
    #"null"
    (format "%4s" "")))
 
-(defn resolved-bytecode-format [constant-table]
+#_(defn resolved-bytecode-format [constant-table]
   (flatten (map  #(if (map? %)
                     (format-bc %)
                     [%
                      (str "-            op     a      b     c/d")])
                  (resolved-bytecode-split constant-table))))
+
+(defn resolved-bytecode-format [constant-table]
+  (flatten (map  #(if (map? %)
+                   (format-bc %)
+                   [%
+                    (str "-            op     a      b     c/d")])
+                  (:bytecode constant-table))))
 
 (defn bytecode-format [bc-list]
   (concat

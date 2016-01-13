@@ -1,30 +1,38 @@
 ------------------
+bytecode: 
+------------------
+------------------
 Types
 ------------------
 
 ------------------
 CONSTANT TABLE
 ------------------
-{:CSTR [], :vtable {}, :CFLOAT [], :CKEY [], :CINT []}
+{:CSTR ["a" "abc" "b"], :vtable {}, :CFLOAT [], :CKEY [:ab], :CINT []}
 ------------------
 
 
 ------------------
 BYTECODE
 ------------------
-fn: 0
--            op     a      b     c/d
-005       :FNEW     1              0 ==> 000   12782
-006     :CSHORT     2              5
-007       :CALL     0              2
-008       :EXIT     0               
-fn: 12782
--            op     a      b     c/d
-000      :FUNCF     1               
-001        :MOV     3              2
-002     :CSHORT     4             10
-003      :ADDVV     3      3       4
-004        :RET     3               
+000       :CSTR     0              1 ; abc
+001      :NSSET     0              0
+002       :CKEY     0              0 ; :ab
+003      :NSSET     0              2
+004       :FNEW     1             15 ==> 015   12789
+005       :FNEW     3             10 ==> 010   12790
+006     :CSHORT     4              5
+007       :CALL     2              2
+008       :CALL     0              2
+009       :EXIT     0               
+010      :FUNCF     1               
+011        :MOV     3              2
+012     :CSHORT     4             10
+013      :ADDVV     3      3       4
+014        :RET     3               
+015      :FUNCF     1               
+016        :MOV     3              2
+017        :RET     3               
 ------------------
 
 ------------------

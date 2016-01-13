@@ -5,6 +5,7 @@
     [clojure.tools.trace :as t]
     [schema.core :as s]))
 
+(defmacro dbg[x] `(let [x# ~x] (println '~x "=" x#) x#))
 
 (defn get-landings [bc-list landings-ops]
   (into {} (map-indexed (fn [i bc]
@@ -43,10 +44,11 @@
           jumps))
 
 (defn take-out-nops [bc-list]
+   bc-list
   (map-indexed #(assoc %2 :i %1)
-               (flatten (mapv
-                         #(if (= (:op %) :nop) (:a %) %)
-                         bc-list))))
+                     (flatten (mapv
+                                #(if (= (:op %) :nop) (:a %) %)
+                                bc-list))))
 
 (defn fn-add-key [bc-list]
   (mapv (fn [bc] (if (= :FNEW (:op bc))
@@ -77,14 +79,17 @@
                    bc)) bc-list))
 
 (defn resolve-jump-offset [fn-map]
-  (let [bc-list (vec (apply concat (vals fn-map)))
+  (let [top-lvl-instr (get fn-map "0")
+        fn-bytecodes (vals (dissoc fn-map "0"))
+        bc-blocks (cons top-lvl-instr fn-bytecodes)
+        bc-list (vec (apply concat bc-blocks))
         landings (get-landings bc-list [:FUNCF :FUNCV :nop :LOOP])
         jumps (get-jumps bc-list [:JUMPT :JUMPF :JUMP :FNEW])]
     (-> bc-list
-        fn-add-key
-        (move-landings landings)
-        (resolve-jumps landings jumps)
-        take-out-nops)))
+              fn-add-key
+              (move-landings landings)
+              (resolve-jumps landings jumps)
+              take-out-nops)))
 
 (defn remove-landings [bc-list]
   (reduce (fn [acc bc]
