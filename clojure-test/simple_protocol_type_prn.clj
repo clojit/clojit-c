@@ -4,4 +4,4 @@
     (deftype API [a]
         REST
         (GET [self] a))
-    (GET (->API 1001)))
+    (println (GET (->API 1001))))

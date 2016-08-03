@@ -233,6 +233,18 @@
     :b ref
     :c offset}])
 
+(defn LOOKUPFIELD [dst object-ref str-offset]
+  [{:op :LOOKUPFIELD
+    :a dst
+    :b object-ref
+    :c str-offset}])
+
+(defn ASSIGNFIELD [object-ref str-offset var]
+  [{:op :ASSIGNFIELD
+    :a object-ref
+    :b str-offset
+    :c var}])
+
 ;; ----------------------- CONSTANT TABLE ----------------------------
 
 (defn find-constant-index [op const]

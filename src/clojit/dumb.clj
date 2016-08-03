@@ -54,7 +54,8 @@
              :FUNCF :FUNCV
              :ALLOC
              :SETFIELD :GETFIELD
-             :BREAK :EXIT :DROP :TRANC])
+             :BREAK :EXIT :DROP :TRANC
+             :LOOKUPFIELD :ASSIGNFIELD])
 
 (def op-to-num-map (apply merge (map-indexed (fn [i b] {b i}) all-op)))
 
@@ -95,7 +96,7 @@
       :iop (p/cl-format nil "~8,'0',B" (:iop instr))
       :a (p/cl-format nil "~8,'0',B"  (:a instr))
       :b (p/cl-format nil "~8,'0',B" (:b instr))
-      :c (p/cl-format nil "~8,'0',B" (:c instr) ))
+      :c (p/cl-format nil "~8,'0',B" (:c instr)))
     (assoc instr
       :iop (p/cl-format nil "~8,'0',B" (:iop instr))
       :a (p/cl-format nil "~8,'0',B" (:a instr) )
@@ -122,8 +123,7 @@
         #_(print-instr-detail instr)
         #_(print-instr-num instr-num)
         #_(println instr-num)
-        instr-num
-        ))))
+        instr-num))))
 
 (defn get-instr [table]
   (let [instrs (sort-by :i (:bytecode table))

@@ -162,6 +162,13 @@
      (bcf/NEWARRAY slot (first arg-slots))]))
 
 (defmethod invoke :default [node slot env]
+  #_( (println "-------------invoke-:default---------------")
+  (print "node: ")
+  (p/pprint node)
+  (print "slot: ")
+  (p/pprint slot)
+  (print "env: ")
+  (p/pprint env))
   (let [args (:args node)
         base slot
         arg-count (count args)
@@ -242,9 +249,12 @@
 
 
 (defmethod ccompile :deftype [node slot env]
+
   (let [type-name (.getName (:class-name node))
         type-node (dissoc node :op :env :form :closed-overs)]
     (bcf/add-type type-name type-node)
+    (doseq [field (:fields node)]
+      (bcf/put-const-in-constant-table :CSTR (str  (:name field))))
     (doseq [method (mapv ccompile (:methods node) (repeat 2) (repeat env))]
       (dosync
         (alter bcf/constant-table
@@ -350,13 +360,16 @@
      :arg-count   argtc
      :bc          bc}))
 
-
 (defmethod ccompile :local [node slot env]
   (let [source (e/get-env env (str (:name node)))]
     (cond
       (:freevar source) [(bcf/GETFREEVAR slot (:freevar source) (str (:name node)))]
       (:this source) [(bcf/GETFIELD slot (:this source) (:offset source))]
       :default [(bcf/MOV slot (:slot source))])))
+
+(defmethod ccompile :host-interop [node slot env]
+   [(ccompile (:target node) slot env)
+        (bcf/LOOKUPFIELD slot slot  (dbg  (bcf/find-constant-index :CSTR (dbg  (str (:m-or-f node))))))])
 
 (defn is-macroexpand-of-defprotocol [node]
   (= (-> node
