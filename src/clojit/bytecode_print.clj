@@ -1,7 +1,6 @@
 (ns clojit.bytecode-print
   (:require
-    [clojure.pprint :as p]
-    [clojure.tools.trace :as t]))
+    [clojure.pprint :as p]))
 
 
 (defn by-line-print [lst]

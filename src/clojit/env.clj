@@ -1,7 +1,6 @@
 (ns clojit.env
   (:require
     [clojure.pprint :as p]
-    [clojure.tools.trace :as t]
     [clojure.set :as hashset]
     [schema.core :as s]
     [schema.macros :as sm]

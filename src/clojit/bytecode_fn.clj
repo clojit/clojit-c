@@ -1,7 +1,6 @@
 (ns clojit.bytecode-fn
   (:require
     [clojure.pprint :as p]
-    [clojure.tools.trace :as t]
     [clojure.string :as str]))
 
 (declare find-constant-index bc-gen)
@@ -308,6 +307,7 @@
              #_:arglists #_(first (:arglists pmd)))))
 
 (defn add-protocol [protocol-name protocol-methods]
+  (println protocol-methods)
   (dosync
    (let [protocol-name-str (.getName protocol-name)
          protocol-name-nonqualified (last (str/split protocol-name-str #"\."))

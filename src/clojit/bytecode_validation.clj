@@ -1,7 +1,6 @@
 (ns clojit.bytecode-validation
   (:require
     [clojure.pprint :as p]
-    [clojure.tools.trace :as t]
     [schema.core :as s]))
 
 

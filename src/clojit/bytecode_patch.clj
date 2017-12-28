@@ -2,7 +2,6 @@
   (:require
     [clojit.bytecode-fn :as bcf]
     [clojure.pprint :as p]
-    [clojure.tools.trace :as t]
     [schema.core :as s]))
 
 (defmacro dbg[x] `(let [x# ~x] (println '~x "=" x#) x#))

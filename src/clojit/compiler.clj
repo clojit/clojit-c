@@ -7,15 +7,11 @@
     [clojit.env :as e]
     [clojit.bytecode-patch :as bcp]
     [clojit.bytecode-print :as bcprint]
-    [clojit.dumb :as dumb]
     [clojure.pprint :as p]
     [clojure.data.json :as json]
     [clojure.tools.reader.edn :as edn]
-    [clojure.tools.trace :as t]
     [clojure.string :as str]
-    [schema.macros :as sm]
-    [clojurewerkz.buffy.core :as buffy])
-  (:import (java.io File FileOutputStream)))
+    [schema.macros :as sm]))
 
 (declare ccompile)
 
@@ -220,6 +216,12 @@
 (defmethod ccompile :binding [node slot env]
   [(ccompile (:init node) slot env)])
 
+(defmethod ccompile :with-meta [node slot env]
+  (println "----------------------")
+  (println (keys node))
+  (println (:raw-forms node))
+  [])
+
 (defn gen-bc-for-arity-selection [jt base fn-id]
   (let [first-free-slot (+ 2 (apply max (keys jt)))]
     (apply concat (map-indexed (fn [i [arity id]]
@@ -415,7 +417,6 @@
     ;; clojure returns symbol of name of the protocol
     []))
 
-
 (defn find-protocol-method-nr [var-sym]
   (first
     (filter (comp not nil?)
@@ -423,7 +424,6 @@
               (fn [[name data]]
                 (:protocol-method-nr (get data (keyword var-sym))))
               (:protocols @bcf/constant-table)))))
-
 
 ;; Checkout out when maybeclass is possible to make sure it covers all possible
 (defmethod ccompile :maybe-class [node slot env]
@@ -622,7 +622,38 @@
 (defn c0 [node]
   (vec (flatten (ccompile node 0 {}))))
 
+;; -----------------------------------------------------
+
+(defn get-types [types]
+  (let [types (sort-by :nr types)
+        lst (map #(hash-map :type-id (:nr %)
+                            :size (:size %)) types)]
+    #_{:lst lst :size (* 4 (count lst))}
+    lst))
+
+
+;; -----------------------------------------------------
+
+
+(def dump-transform {:types (fn [v]
+                              (vec (get-types v)))
+                     :bytecode (fn [v] (mapv #(select-keys % [:op :a :b :c :d]) v))
+                     })
+
+(defn dump [ct]
+  (merge
+    ct
+    (apply merge
+           (remove
+             nil?
+             (map (fn [[k v]]
+                    (let [transform-fn (k dump-transform)]
+                      (when transform-fn
+                        {k (transform-fn v)}))) ct)
+             ))))
+
 (defn c "Main Compiler Funcion" [clj-form filename]
+  (bcf/set-empty)
   (let [node (anal/asteval clj-form)
         bc (c0 node)
         bc-exit (conj bc {:op :EXIT :a 0 :d nil})
@@ -669,22 +700,31 @@
     (apply println (bcprint/print-types @bcf/constant-table))
     (println "------------------")
     (println "CONSTANT TABLE")
-    (println "------------------")
-    (p/pprint (dissoc @bcf/constant-table :fn-bc-count :CFUNC :types :protocols :bytecode :top-level-name :uuid-counter :uuid-counter-type :uuid-counter-type))
     (println "------------------\n\n")
     (println "------------------")
     (println "BYTECODE")
     (println "------------------")
     (bcprint/by-line-print (bcprint/resolved-bytecode-format @bcf/constant-table))
     (println "------------------")
+    (println "Full output")
 
-    (let [newfile (File. filename)
+    (let [y (select-keys @bcf/constant-table [:CSTR :CFLOAT :CKEY :CINT :types :vtable :bytecode])
+          x (dump y)]
+
+      (clojure.pprint/pprint x)
+      (spit filename (json/write-str x)))
+
+
+
+    #_(let [newfile (File. filename)
           b (dumb/dumb-buffer)
           filechannel (.getChannel (FileOutputStream. newfile false))]
       (.write filechannel b)
       (.close filechannel))
 
     ))
+
+
 
 #_(-> '(do (defprotocol kill
              ([]))
@@ -724,7 +764,7 @@
 ;; ----------------------- file output --------------------------------
 
 (defn clj-file-name [clj-infile]
-  (apply str [(first (butlast (str/split clj-infile #"\."))) ".cvmb"]))
+  (apply str [(first (butlast (str/split clj-infile #"\."))) ".cson"]))
 
 (sm/defn gen-file-output
   [bc-output :- bcv/Bytecode-Output-Data output-file-name]
@@ -745,6 +785,7 @@
 
 
 #_(p/pprint (-> '(do
+
                    (def ^:dynamic a 1)
                    (binding [a 16] a))
                 anal/ast
